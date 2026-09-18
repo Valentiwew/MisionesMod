@@ -1,0 +1,66 @@
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+	id 'maven-publish'
+}
+
+repositories {
+	mavenCentral()
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		"misionesmod" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+	inputs.property "mc_version", "~26.2"
+
+	filesMatching("fabric.mod.json") {
+		expand "version": version, "mc_version": "~26.2"
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 25
+}
+
+java {
+	withSourcesJar()
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
+
+jar {
+	archiveFileName = "misionesmod-26.2-${project.version}.jar"
+}
+
+task jar263(type: Jar) {
+	destinationDirectory = jar.destinationDirectory
+	archiveFileName = "misionesmod-26.3-${project.version}.jar"
+
+	from sourceSets.main.output
+	from sourceSets.client.output
+
+	// Ensure fabric.mod.json in jar263 targets ~26.3
+	filesMatching("fabric.mod.json") {
+		filter { line ->
+			line.replace('"~26.2"', '"~26.3"')
+		}
+	}
+}
+
+assemble.dependsOn jar263

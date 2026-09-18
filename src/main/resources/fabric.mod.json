@@ -1,0 +1,26 @@
+{
+	"schemaVersion": 1,
+	"id": "misionesmod",
+	"version": "${version}",
+	"name": "Misiones Mod",
+	"description": "Sistema de misiones interactivas con menu configurable, suministros aereos (drops) con alertas de chat, marcadores en pantalla (waypoints HUD) y loot aleatorio configurable.",
+	"authors": [
+		"Antigravity & User"
+	],
+	"license": "MIT",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.misionesmod.MisionesMod"
+		],
+		"client": [
+			"com.misionesmod.client.MisionesModClient"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "${mc_version}",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

@@ -2,6 +2,11 @@
 
 Mod de misiones tacticas, incursiones en edificios, suministros aereos y gestion de botin para Minecraft Fabric. Disenado especificamente para series y servidores tematicos de supervivencia, apocalipsis zombie y cooperacion.
 
+- **Version de Minecraft:** 26.2 / 26.3
+- **Cargador de Mods:** Fabric Loader (>= 0.19.5)
+- **API Requerida:** Fabric API
+- **Version de Java:** Java 25
+
 ---
 
 ## Caracteristicas Principales
@@ -62,10 +67,12 @@ Dentro de la pantalla de creacion de mision, al pulsar "Marcar Puntos en el Mund
 ---
 
 ## Requisitos e Instalacion
-
-1. Instalar **Fabric Loader** para la version correspondiente de Minecraft.
-2. Descargar e instalar **Fabric API** en la carpeta `mods`.
-3. Colocar el archivo `misionesmod-<version>.jar` dentro de la carpeta `mods` del cliente y del servidor.
+ 
+1. **Minecraft:** Version 26.2 o 26.3.
+2. **Fabric Loader:** Version 0.19.5 o superior.
+3. **Java:** Java Runtime Environment 25.
+4. **Fabric API:** Descargar e instalar la version de Fabric API para Minecraft 26.2/26.3 en la carpeta `mods`.
+5. **Mod:** Colocar el archivo `misionesmod-26.2-1.0.0.jar` (o `misionesmod-26.3-1.0.0.jar` segun la version del juego) dentro de la carpeta `mods` tanto en el cliente como en el servidor.
 
 ---
 

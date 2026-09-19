@@ -49,6 +49,8 @@ public class CreateMissionScreen extends Screen {
     private final List<String> incursionRoutePointNames = new ArrayList<>();
     private final List<BlockPos> incursionCustomChestPositions = new ArrayList<>();
     private final List<String> incursionCustomChestLootPack = new ArrayList<>();
+    private final List<BlockPos> incursionEntryGateBlocks = new ArrayList<>();
+    private final List<BlockPos> incursionFinalGateBlocks = new ArrayList<>();
     private List<String> incursionMobs = new ArrayList<>();
     private int incursionWaves = 4;
     private List<ItemStack> incursionChestItems = new ArrayList<>();
@@ -128,6 +130,12 @@ public class CreateMissionScreen extends Screen {
             if (existingMission.getCustomChestLootPack() != null) {
                 this.incursionCustomChestLootPack.addAll(existingMission.getCustomChestLootPack());
             }
+            if (existingMission.getEntryGateBlocks() != null) {
+                this.incursionEntryGateBlocks.addAll(existingMission.getEntryGateBlocks());
+            }
+            if (existingMission.getFinalGateBlocks() != null) {
+                this.incursionFinalGateBlocks.addAll(existingMission.getFinalGateBlocks());
+            }
             if (existingMission.getTotalWaves() > 0) {
                 this.incursionWaves = existingMission.getTotalWaves();
             }
@@ -180,7 +188,9 @@ public class CreateMissionScreen extends Screen {
             List<BlockPos> routePoints,
             List<String> routePointNames,
             List<BlockPos> customChestPositions,
-            List<String> customChestLootPack
+            List<String> customChestLootPack,
+            List<BlockPos> entryGateBlocks,
+            List<BlockPos> finalGateBlocks
     ) {
         this.savedTitle = title;
         this.savedDesc = desc;
@@ -218,6 +228,14 @@ public class CreateMissionScreen extends Screen {
         this.incursionCustomChestLootPack.clear();
         if (customChestLootPack != null) {
             this.incursionCustomChestLootPack.addAll(customChestLootPack);
+        }
+        this.incursionEntryGateBlocks.clear();
+        if (entryGateBlocks != null) {
+            this.incursionEntryGateBlocks.addAll(entryGateBlocks);
+        }
+        this.incursionFinalGateBlocks.clear();
+        if (finalGateBlocks != null) {
+            this.incursionFinalGateBlocks.addAll(finalGateBlocks);
         }
         this.valuesInitialized = true;
     }
@@ -320,7 +338,9 @@ public class CreateMissionScreen extends Screen {
                             this.incursionRoutePoints,
                             this.incursionRoutePointNames,
                             this.incursionCustomChestPositions,
-                            this.incursionCustomChestLootPack
+                            this.incursionCustomChestLootPack,
+                            this.incursionEntryGateBlocks,
+                            this.incursionFinalGateBlocks
                     );
                     if (this.minecraft != null) {
                         this.minecraft.gui.setScreen(null);
@@ -524,7 +544,9 @@ public class CreateMissionScreen extends Screen {
                 incursionRoutePoints,
                 incursionRoutePointNames,
                 incursionCustomChestPositions,
-                incursionCustomChestLootPack
+                incursionCustomChestLootPack,
+                incursionEntryGateBlocks,
+                incursionFinalGateBlocks
         ));
 
         if (this.minecraft != null) {

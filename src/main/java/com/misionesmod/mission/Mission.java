@@ -166,6 +166,8 @@ public class Mission {
     private java.util.List<String> routePointNames = new java.util.ArrayList<>();
     private java.util.List<BlockPos> customChestPositions = new java.util.ArrayList<>();
     private java.util.List<String> customChestLootPack = new java.util.ArrayList<>();
+    private java.util.List<BlockPos> entryGateBlocks = new java.util.ArrayList<>();
+    private java.util.List<BlockPos> finalGateBlocks = new java.util.ArrayList<>();
 
     public java.util.List<BlockPos> getRoutePoints() { return routePoints; }
     public void setRoutePoints(java.util.List<BlockPos> list) { this.routePoints = list != null ? list : new java.util.ArrayList<>(); }
@@ -178,6 +180,12 @@ public class Mission {
 
     public java.util.List<String> getCustomChestLootPack() { return customChestLootPack; }
     public void setCustomChestLootPack(java.util.List<String> list) { this.customChestLootPack = list != null ? list : new java.util.ArrayList<>(); }
+
+    public java.util.List<BlockPos> getEntryGateBlocks() { return entryGateBlocks; }
+    public void setEntryGateBlocks(java.util.List<BlockPos> list) { this.entryGateBlocks = list != null ? list : new java.util.ArrayList<>(); }
+
+    public java.util.List<BlockPos> getFinalGateBlocks() { return finalGateBlocks; }
+    public void setFinalGateBlocks(java.util.List<BlockPos> list) { this.finalGateBlocks = list != null ? list : new java.util.ArrayList<>(); }
 
     public java.util.List<net.minecraft.world.item.ItemStack> getLootForChest(BlockPos chestPos) {
         if (chestPos != null) {
@@ -374,6 +382,16 @@ public class Mission {
             buf.writeUtf(s != null ? s : "");
         }
 
+        buf.writeVarInt(entryGateBlocks.size());
+        for (BlockPos p : entryGateBlocks) {
+            buf.writeBlockPos(p);
+        }
+
+        buf.writeVarInt(finalGateBlocks.size());
+        for (BlockPos p : finalGateBlocks) {
+            buf.writeBlockPos(p);
+        }
+
         buf.writeVarInt(currentProgress);
     }
 
@@ -485,6 +503,20 @@ public class Mission {
             customChestPacks.add(buf.readUtf());
         }
         mission.setCustomChestLootPack(customChestPacks);
+
+        int entryGateCount = buf.readVarInt();
+        java.util.List<BlockPos> entryGates = new java.util.ArrayList<>(entryGateCount);
+        for (int i = 0; i < entryGateCount; i++) {
+            entryGates.add(buf.readBlockPos());
+        }
+        mission.setEntryGateBlocks(entryGates);
+
+        int finalGateCount = buf.readVarInt();
+        java.util.List<BlockPos> finalGates = new java.util.ArrayList<>(finalGateCount);
+        for (int i = 0; i < finalGateCount; i++) {
+            finalGates.add(buf.readBlockPos());
+        }
+        mission.setFinalGateBlocks(finalGates);
 
         mission.setCurrentProgress(buf.readVarInt());
 

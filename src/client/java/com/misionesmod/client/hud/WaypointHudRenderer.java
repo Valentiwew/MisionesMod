@@ -368,6 +368,8 @@ public class WaypointHudRenderer implements HudElement {
             int spawnsCount = com.misionesmod.client.gui.IncursionSetupSession.spawnPoints.size();
             int chestsCount = com.misionesmod.client.gui.IncursionSetupSession.savedChestPositions.size();
             int routesCount = com.misionesmod.client.gui.IncursionSetupSession.routePoints.size();
+            int entryGatesCount = com.misionesmod.client.gui.IncursionSetupSession.entryGateBlocks.size();
+            int finalGatesCount = com.misionesmod.client.gui.IncursionSetupSession.finalGateBlocks.size();
             boolean hasExt = com.misionesmod.client.gui.IncursionSetupSession.extractionPos != null;
             boolean hasRoof = com.misionesmod.client.gui.IncursionSetupSession.roofPos != null;
 
@@ -376,6 +378,8 @@ public class WaypointHudRenderer implements HudElement {
             String keyRoof = MisionesModClient.SET_ESCAPE_KEY != null ? MisionesModClient.SET_ESCAPE_KEY.getTranslatedKeyMessage().getString() : "E";
             String keySpawn = MisionesModClient.ADD_SPAWN_KEY != null ? MisionesModClient.ADD_SPAWN_KEY.getTranslatedKeyMessage().getString() : "J";
             String keyChest = MisionesModClient.REGISTER_CHEST_KEY != null ? MisionesModClient.REGISTER_CHEST_KEY.getTranslatedKeyMessage().getString() : "C";
+            String keyEntryGate = MisionesModClient.SET_ENTRY_GATE_KEY != null ? MisionesModClient.SET_ENTRY_GATE_KEY.getTranslatedKeyMessage().getString() : "B";
+            String keyFinalGate = MisionesModClient.SET_FINAL_GATE_KEY != null ? MisionesModClient.SET_FINAL_GATE_KEY.getTranslatedKeyMessage().getString() : "N";
             String keyLoot = MisionesModClient.EDIT_CHEST_LOOT_KEY != null ? MisionesModClient.EDIT_CHEST_LOOT_KEY.getTranslatedKeyMessage().getString() : "L";
             String keyMob = MisionesModClient.SELECT_MOBS_KEY != null ? MisionesModClient.SELECT_MOBS_KEY.getTranslatedKeyMessage().getString() : "V";
             String keyClear = MisionesModClient.CLEAR_SPAWNS_KEY != null ? MisionesModClient.CLEAR_SPAWNS_KEY.getTranslatedKeyMessage().getString() : "K";
@@ -383,10 +387,12 @@ public class WaypointHudRenderer implements HudElement {
             String keyDone = MisionesModClient.OPEN_MENU_KEY != null ? MisionesModClient.OPEN_MENU_KEY.getTranslatedKeyMessage().getString() : "M";
 
             String setupText = "§a[" + keyExt + "] §fInicio " + (hasExt ? "§a✔" : "§7[--]") +
-                    " §7| §b[" + keyRoute + "] §fCheckpoint (§e" + routesCount + "§f)" +
+                    " §7| §b[" + keyRoute + "] §fCheckp. (§e" + routesCount + "§f)" +
                     " §7| §e[" + keyRoof + "] §fEscape " + (hasRoof ? "§e✔" : "§7[--]") +
-                    " §7| §c[" + keySpawn + "] §fMob Spawn (§e" + spawnsCount + "§f)" +
-                    " §7| §6[" + keyChest + "] §fCofre (§e" + chestsCount + "§f)" +
+                    " §7| §c[" + keySpawn + "] §fMobs (§e" + spawnsCount + "§f)" +
+                    " §7| §6[" + keyChest + "] §fCofres (§e" + chestsCount + "§f)" +
+                    " §7| §2[" + keyEntryGate + "] §fP.Inicio (§e" + entryGatesCount + "§f)" +
+                    " §7| §6[" + keyFinalGate + "] §fP.Final (§e" + finalGatesCount + "§f)" +
                     " §7| §d[" + keyLoot + "] §fLoot §7| §5[" + keyMob + "] §fMobs" +
                     " §7| §4[" + keyClear + "] §fLimpiar §7| §e[" + keyHelp + "] §fAyuda §7| §6[" + keyDone + "] §fListo";
 
@@ -430,6 +436,12 @@ public class WaypointHudRenderer implements HudElement {
                 }
                 for (BlockPos p : com.misionesmod.client.gui.IncursionSetupSession.savedChestPositions) {
                     player.level().addParticle(ParticleTypes.HAPPY_VILLAGER, p.getX() + 0.5, p.getY() + 1.2, p.getZ() + 0.5, 0, 0.05, 0);
+                }
+                for (BlockPos p : com.misionesmod.client.gui.IncursionSetupSession.entryGateBlocks) {
+                    player.level().addParticle(ParticleTypes.HAPPY_VILLAGER, p.getX() + 0.5, p.getY() + 1.1, p.getZ() + 0.5, 0, 0.05, 0);
+                }
+                for (BlockPos p : com.misionesmod.client.gui.IncursionSetupSession.finalGateBlocks) {
+                    player.level().addParticle(ParticleTypes.FLAME, p.getX() + 0.5, p.getY() + 1.1, p.getZ() + 0.5, 0, 0.03, 0);
                 }
             }
         }
@@ -529,14 +541,13 @@ public class WaypointHudRenderer implements HudElement {
             }
         }
 
-        // 3. Renderizar Notificaciones Animadas apiladas DEBAJO de los marcadores superiores
+        // 3. Renderizar Notificaciones Animadas apiladas ARRIBA DE LA HOTBAR
         List<ActiveNotification> notifList;
         synchronized (WaypointHudRenderer.class) {
             activeNotifications.removeIf(n -> (now - n.startTime) >= n.duration);
             notifList = new ArrayList<>(activeNotifications);
         }
 
-        int topWaypointsEndY = 8 + incursionOffset + (Math.min(activeList.size(), 3) * 19) + 4;
         int totalNotifs = notifList.size();
         for (int idx = 0; idx < totalNotifs; idx++) {
             ActiveNotification notif = notifList.get(idx);
@@ -544,31 +555,32 @@ public class WaypointHudRenderer implements HudElement {
             float alpha = 1.0f;
             float offsetY = 0.0f;
 
-            // Entrada (250ms: desliza suavemente hacia abajo)
+            // Entrada (250ms: desliza suavemente hacia arriba)
             if (elapsed < 250) {
                 float p = (float) elapsed / 250.0f;
                 alpha = p;
-                offsetY = (1.0f - p) * -8.0f;
+                offsetY = (1.0f - p) * 8.0f;
             }
             // Salida (últimos 350ms: fade out)
             else if (elapsed > notif.duration - 350) {
                 float p = (float) (elapsed - (notif.duration - 350)) / 350.0f;
                 alpha = Math.max(0.0f, 1.0f - p);
-                offsetY = p * 6.0f;
+                offsetY = (1.0f - p) * -6.0f;
             }
 
             if (alpha <= 0.01f) continue;
 
-            int baseY = topWaypointsEndY + (idx * 21);
+            int stackFromBottom = (totalNotifs - 1 - idx) * 20;
+            int notifY = screenHeight - 68 - stackFromBottom + (int) offsetY;
+
             int textW = font.width(notif.text);
             int boxW = textW + 20;
-            int boxH = 18;
+            int boxH = 17;
             int notifX = (screenWidth - boxW) / 2;
-            int notifY = baseY + (int) offsetY;
 
             graphics.fill(notifX, notifY, notifX + boxW, notifY + boxH, applyAlpha(0xEE090D16, alpha));
             graphics.outline(notifX, notifY, boxW, boxH, applyAlpha(notif.borderColor, alpha));
-            graphics.centeredText(font, Component.literal(notif.text), screenWidth / 2, notifY + 5, applyAlpha(0xFFFFFFFF, alpha));
+            graphics.centeredText(font, Component.literal(notif.text), screenWidth / 2, notifY + 4, applyAlpha(0xFFFFFFFF, alpha));
         }
 
         // 4. Renderizar Widget Flotante en la esquina (Drops y Misiones en progreso)

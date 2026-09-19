@@ -94,6 +94,20 @@ public class MisionesModClient implements ClientModInitializer {
             MOD_CATEGORY
     ));
 
+    public static final KeyMapping SET_ENTRY_GATE_KEY = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+            "key.misionesmod.incursion.entry_gate",
+            InputConstants.Type.KEYSYM,
+            InputConstants.KEY_B,
+            MOD_CATEGORY
+    ));
+
+    public static final KeyMapping SET_FINAL_GATE_KEY = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+            "key.misionesmod.incursion.final_gate",
+            InputConstants.Type.KEYSYM,
+            InputConstants.KEY_N,
+            MOD_CATEGORY
+    ));
+
     public static final List<Mission> clientMissions = new ArrayList<>();
     public static final java.util.Set<String> notifiedItemMissions = new java.util.HashSet<>();
     public static final java.util.Set<String> craftableItemIds = new java.util.HashSet<>();
@@ -242,6 +256,12 @@ public class MisionesModClient implements ClientModInitializer {
                 }
                 while (SELECT_MOBS_KEY.consumeClick()) {
                     com.misionesmod.client.gui.IncursionSetupSession.openMobSelector(client);
+                }
+                while (SET_ENTRY_GATE_KEY.consumeClick()) {
+                    com.misionesmod.client.gui.IncursionSetupSession.toggleTargetedEntryGate(client);
+                }
+                while (SET_FINAL_GATE_KEY.consumeClick()) {
+                    com.misionesmod.client.gui.IncursionSetupSession.toggleTargetedFinalGate(client);
                 }
                 while (OPEN_MENU_KEY.consumeClick()) {
                     com.misionesmod.client.gui.IncursionSetupSession.finishAndReopen(client);

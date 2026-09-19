@@ -86,7 +86,9 @@ public class ModPackets {
             List<BlockPos> routePoints,
             List<String> routePointNames,
             List<BlockPos> customChestPositions,
-            List<String> customChestLootPack
+            List<String> customChestLootPack,
+            List<BlockPos> entryGateBlocks,
+            List<BlockPos> finalGateBlocks
     ) implements CustomPacketPayload {
         public static final Type<CreateMissionPayload> TYPE = new Type<>(Identifier.fromNamespaceAndPath("misionesmod", "create_mission"));
         public static final StreamCodec<FriendlyByteBuf, CreateMissionPayload> CODEC = CustomPacketPayload.codec(
@@ -119,7 +121,9 @@ public class ModPackets {
                     readBlockPosList(buf),
                     readStringList(buf),
                     readBlockPosList(buf),
-                    readStringList(buf)
+                    readStringList(buf),
+                    readBlockPosList(buf),
+                    readBlockPosList(buf)
             );
         }
 
@@ -224,6 +228,16 @@ public class ModPackets {
             buf.writeVarInt(customChestLootPack != null ? customChestLootPack.size() : 0);
             if (customChestLootPack != null) {
                 for (String s : customChestLootPack) buf.writeUtf(s != null ? s : "");
+            }
+
+            buf.writeVarInt(entryGateBlocks != null ? entryGateBlocks.size() : 0);
+            if (entryGateBlocks != null) {
+                for (BlockPos p : entryGateBlocks) buf.writeBlockPos(p);
+            }
+
+            buf.writeVarInt(finalGateBlocks != null ? finalGateBlocks.size() : 0);
+            if (finalGateBlocks != null) {
+                for (BlockPos p : finalGateBlocks) buf.writeBlockPos(p);
             }
         }
 

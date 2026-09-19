@@ -14,6 +14,7 @@ Mod de misiones tacticas, incursiones por oleadas, suministros aereos y gestion 
 ### 1. Sistema de Incursiones en Estructuras y Edificios
 Permite disenar y ejecutar incursiones tacticas completas con seguimiento en vivo:
 - **Punto de Inicio y Reunion:** Los jugadores se congregan en la entrada. La incursion no inicia hasta reunir al equipo, iniciando un conteo regresivo sincronizado.
+- **Puertas Automáticas de Avance:** Permite configurar bloques que se destruyen automáticamente al iniciar la misión (para abrir el paso al edificio) y al comenzar la última oleada (para abrir el acceso a la zona final/escape).
 - **Rutas y Checkpoints Dinamicos:** El objetivo guia a los jugadores a traves de una sucesion de puntos de control. Al alcanzar un checkpoint (rango de 4 bloques), se emite un sonido de campana y la guia avanza automaticamente al siguiente objetivo sin repetirse.
 - **Oleadas de Combate:** Cada oleada genera grupos de enemigos en los puntos de spawn definidos. Durante las oleadas activas, los cofres permanecen bloqueados contra apertura y rotura.
 - **Fase de Botin:** Tras superar las oleadas, se activa un temporizador de saqueo donde los cofres se desbloquean.
@@ -39,6 +40,7 @@ Permite disenar y ejecutar incursiones tacticas completas con seguimiento en viv
 
 ### 5. Interfaz Visual (HUD) y Brujula Direccional
 - **Brujula Dinamica:** Flechas direccionales contextuales (arriba, abajo, izquierda, derecha) y distancia en metros hacia el objetivo actual (punto de inicio, checkpoints, salida o suministros aereos).
+- **Notificaciones sobre la Hotbar:** Los avisos de oleadas ("Siguiente oleada en Xs", bloqueos de cofres, aperturas de puertas) aparecen directamente sobre la barra de acceso rápido con animaciones suaves para no obstruir la vista central ni los waypoints.
 - **Iconos de Items:** En misiones de crafteo, cocinado y obtencion, el HUD proyecta el icono del item requerido junto al progreso numerico.
 - **Menu de Ajustes de HUD:** Accesible para activar/desactivar el widget en pantalla y seleccionar la esquina deseada (Superior Izquierda, Superior Derecha, Inferior Izquierda, Inferior Derecha).
 
@@ -51,14 +53,17 @@ Permite disenar y ejecutar incursiones tacticas completas con seguimiento en viv
 
 ### Administradores (Modo "En el Mundo")
 Al presionar el boton "En el Mundo" en la creacion o edicion de una incursion, el administrador ingresa al modo de configuracion rapida:
-- **C (Checkpoint):** Anade un punto de control secuencial en la posicion actual.
-- **R (Inicio):** Fija el punto de inicio y reunion de la incursion.
-- **X (Escape):** Establece la zona de extraccion y escape final.
-- **G (Mob Spawn):** Registra un punto de aparicion de oleadas.
-- **B (Loot):** Registra un cofre apuntado o anade una posicion de cofre.
-- **V (Mobs):** Abre el selector de mobs vanilla y mods para elegir que enemigos generara la incursion.
-- **K (Limpiar):** Vacia todos los puntos y configuraciones registradas en la sesion actual.
-- **M (Listo):** Guarda los cambios del mapa y regresa a la pantalla de mision.
+- **G (Inicio):** Fija la entrada donde se esperará al equipo.
+- **H (Checkpoint):** Añade checkpoints a lo largo del recorrido.
+- **E (Escape):** Marca la salida final donde termina la misión.
+- **J (Mob Spawn):** Añade puntos donde aparecerán los enemigos.
+- **C (Cofre):** Apunta a un cofre para incluirlo en la misión.
+- **L (Loot):** Apunta a un cofre para abrir su editor de botín.
+- **B (Puerta Inicio):** Apunta a bloques para seleccionarlos y destruirlos al comenzar la misión.
+- **N (Puerta Final):** Apunta a bloques para destruirlos al comenzar la última oleada.
+- **V (Mobs):** Abre el selector de criaturas (vainilla y mods).
+- **K (Limpiar):** Borra absolutamente toda la configuración.
+- **M (Listo):** Guarda los cambios del mapa y regresa a la pantalla de misión.
 
 ---
 

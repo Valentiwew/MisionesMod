@@ -36,6 +36,8 @@ public class IncursionSetupSession {
     public static final List<BlockPos> spawnPoints = new ArrayList<>();
     public static final List<BlockPos> savedChestPositions = new ArrayList<>();
     public static final Map<BlockPos, List<ItemStack>> customChestLootMap = new HashMap<>();
+    public static final List<BlockPos> entryGateBlocks = new ArrayList<>();
+    public static final List<BlockPos> finalGateBlocks = new ArrayList<>();
 
     public static void start(
             CreateMissionScreen screen,
@@ -55,7 +57,9 @@ public class IncursionSetupSession {
             List<BlockPos> currentRoutes,
             List<String> currentRouteNames,
             List<BlockPos> currentCustomChestPositions,
-            List<String> currentCustomChestPacks
+            List<String> currentCustomChestPacks,
+            List<BlockPos> currentEntryGates,
+            List<BlockPos> currentFinalGates
     ) {
         parentScreen = screen;
         existingMission = mission;
@@ -102,6 +106,17 @@ public class IncursionSetupSession {
                 }
             }
         }
+
+        entryGateBlocks.clear();
+        if (currentEntryGates != null) {
+            entryGateBlocks.addAll(currentEntryGates);
+        }
+
+        finalGateBlocks.clear();
+        if (currentFinalGates != null) {
+            finalGateBlocks.addAll(currentFinalGates);
+        }
+
         active = true;
         setStatus("Modo En el Mundo activado. Usa las teclas de arriba ([M] para terminar)", 0xFF22C55E);
     }
@@ -259,10 +274,58 @@ public class IncursionSetupSession {
         roofPos = null;
         savedChestPositions.clear();
         customChestLootMap.clear();
+        entryGateBlocks.clear();
+        finalGateBlocks.clear();
         if (mc.player != null) {
             mc.player.playSound(SoundEvents.ANVIL_BREAK, 0.8f, 1.2f);
         }
         setStatus("Toda la configuración de la incursión ha sido borrada", 0xFFEF4444);
+    }
+
+    public static void toggleTargetedEntryGate(Minecraft mc) {
+        if (mc == null) return;
+        if (mc.hitResult instanceof BlockHitResult bhr) {
+            BlockPos target = bhr.getBlockPos();
+            if (entryGateBlocks.contains(target)) {
+                entryGateBlocks.remove(target);
+                if (mc.player != null) mc.player.playSound(SoundEvents.STONE_BREAK, 0.8f, 1.0f);
+                setStatus("Bloque de puerta de inicio desregistrado", 0xFFEF4444);
+            } else {
+                entryGateBlocks.add(target);
+                if (mc.player != null && mc.level != null) {
+                    mc.player.playSound(SoundEvents.CHEST_OPEN, 0.8f, 1.4f);
+                    for (int i = 0; i < 10; i++) {
+                        mc.level.addParticle(ParticleTypes.HAPPY_VILLAGER, target.getX() + 0.5, target.getY() + 1.1, target.getZ() + 0.5, 0, 0.05, 0);
+                    }
+                }
+                setStatus("Puerta Inicio #" + entryGateBlocks.size() + " registrada (se abrirá al iniciar)", 0xFF22C55E);
+            }
+            return;
+        }
+        setStatus("Apunta con la mira a un bloque para marcarlo como puerta de inicio", 0xFF94A3B8);
+    }
+
+    public static void toggleTargetedFinalGate(Minecraft mc) {
+        if (mc == null) return;
+        if (mc.hitResult instanceof BlockHitResult bhr) {
+            BlockPos target = bhr.getBlockPos();
+            if (finalGateBlocks.contains(target)) {
+                finalGateBlocks.remove(target);
+                if (mc.player != null) mc.player.playSound(SoundEvents.STONE_BREAK, 0.8f, 1.0f);
+                setStatus("Bloque de puerta final desregistrado", 0xFFEF4444);
+            } else {
+                finalGateBlocks.add(target);
+                if (mc.player != null && mc.level != null) {
+                    mc.player.playSound(SoundEvents.IRON_DOOR_OPEN, 0.8f, 1.2f);
+                    for (int i = 0; i < 10; i++) {
+                        mc.level.addParticle(ParticleTypes.FLAME, target.getX() + 0.5, target.getY() + 1.1, target.getZ() + 0.5, 0, 0.05, 0);
+                    }
+                }
+                setStatus("Puerta Final #" + finalGateBlocks.size() + " registrada (se abrirá en oleada final)", 0xFFF59E0B);
+            }
+            return;
+        }
+        setStatus("Apunta con la mira a un bloque para marcarlo como puerta final", 0xFF94A3B8);
     }
 
     public static void finishAndReopen(Minecraft mc) {
@@ -300,7 +363,9 @@ public class IncursionSetupSession {
                 routePoints,
                 routePointNames,
                 customChestPositions,
-                customChestLootPack
+                customChestLootPack,
+                entryGateBlocks,
+                finalGateBlocks
         );
         if (mc.gui != null) {
             mc.gui.setScreen(screen);
@@ -319,6 +384,8 @@ public class IncursionSetupSession {
         mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§6║ §c[J] §fMob Spawn: §7Añade puntos donde aparecerán los enemigos."));
         mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§6║ §6[C] §fCofre: §7Apunta a un cofre para incluirlo en la misión."));
         mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§6║ §d[L] §fLoot: §7Apunta a un cofre para abrir su editor de botín."));
+        mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§6║ §2[B] §fP. Inicio: §7Apunta a bloques para destruirlos al comenzar."));
+        mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§6║ §6[N] §fP. Final: §7Apunta a bloques para destruirlos en oleada final."));
         mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§6║ §5[V] §fMobs: §7Abre el selector de criaturas (vainilla y mods)."));
         mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§6║ §4[K] §fLimpiar: §7Borra absolutamente toda la configuración."));
         mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§6║ §a[M] §fListo: §7Guarda la configuración y vuelve al menú."));

@@ -63,6 +63,8 @@ public class MisionesMod implements ModInitializer {
                         existing.setRoutePointNames(payload.routePointNames());
                         existing.setCustomChestPositions(payload.customChestPositions());
                         existing.setCustomChestLootPack(payload.customChestLootPack());
+                        existing.setEntryGateBlocks(payload.entryGateBlocks());
+                        existing.setFinalGateBlocks(payload.finalGateBlocks());
                         MissionManager.save();
                         MissionManager.syncToAll(context.server());
                         player.sendSystemMessage(Component.literal("§aMisión Modificada."));
@@ -95,6 +97,8 @@ public class MisionesMod implements ModInitializer {
                         mission.setRoutePointNames(payload.routePointNames());
                         mission.setCustomChestPositions(payload.customChestPositions());
                         mission.setCustomChestLootPack(payload.customChestLootPack());
+                        mission.setEntryGateBlocks(payload.entryGateBlocks());
+                        mission.setFinalGateBlocks(payload.finalGateBlocks());
                         MissionManager.addMission(mission, context.server());
                     }
                 });

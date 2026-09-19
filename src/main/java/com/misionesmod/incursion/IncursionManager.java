@@ -520,6 +520,19 @@ public class IncursionManager {
                                     0xFFEF4444
                             ));
 
+                            // Destruir / abrir bloques de puerta de inicio configurados
+                            if (m.getEntryGateBlocks() != null && !m.getEntryGateBlocks().isEmpty()) {
+                                for (BlockPos gp : m.getEntryGateBlocks()) {
+                                    level.setBlockAndUpdate(gp, Blocks.AIR.defaultBlockState());
+                                    level.playSound(null, gp.getX() + 0.5, gp.getY() + 0.5, gp.getZ() + 0.5, SoundEvents.ZOMBIE_BREAK_WOODEN_DOOR, SoundSource.BLOCKS, 1.2f, 1.0f);
+                                    level.sendParticles(ParticleTypes.EXPLOSION, gp.getX() + 0.5, gp.getY() + 0.5, gp.getZ() + 0.5, 4, 0.2, 0.2, 0.2, 0.05);
+                                }
+                                broadcastToRegistered(server, session, new ModPackets.NotificationPayload(
+                                        "§a§l¡El camino se ha abierto! ¡Avancen a la estructura!",
+                                        0xFF22C55E
+                                ));
+                            }
+
                             // Si hay punto de ruta inicial, marcarlo
                             if (m.getRoutePoints() != null && !m.getRoutePoints().isEmpty()) {
                                 BlockPos rPos = m.getRoutePoints().get(0);
@@ -617,6 +630,20 @@ public class IncursionManager {
                             session.escapeGraceTicks = 40;
                             session.cooldownTicks = 240;
                             if (session.lootingTicks <= 0) session.lootingTicks = 1200;
+
+                            // Destruir / abrir bloques de puerta final si fueron configurados
+                            if (m.getFinalGateBlocks() != null && !m.getFinalGateBlocks().isEmpty()) {
+                                for (BlockPos gp : m.getFinalGateBlocks()) {
+                                    level.setBlockAndUpdate(gp, Blocks.AIR.defaultBlockState());
+                                    level.playSound(null, gp.getX() + 0.5, gp.getY() + 0.5, gp.getZ() + 0.5, SoundEvents.ZOMBIE_BREAK_WOODEN_DOOR, SoundSource.BLOCKS, 1.2f, 0.9f);
+                                    level.sendParticles(ParticleTypes.EXPLOSION, gp.getX() + 0.5, gp.getY() + 0.5, gp.getZ() + 0.5, 4, 0.3, 0.3, 0.3, 0.05);
+                                }
+                                broadcastToRegistered(server, session, new ModPackets.NotificationPayload(
+                                        "§6§l¡La puerta final se ha abierto! ¡Avancen a la zona final!",
+                                        0xFFF59E0B
+                                ));
+                            }
+
                             level.playSound(null, center.getX(), center.getY(), center.getZ(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.PLAYERS, 1.2f, 1.0f);
 
                             broadcastToRegistered(server, session, new ModPackets.NotificationPayload(
@@ -689,6 +716,19 @@ public class IncursionManager {
                             session.cooldownTicks = 240; // 12s entre refuerzos
                             if (session.lootingTicks <= 0) session.lootingTicks = 1200;
                             spawnWaveMobs(level, session);
+
+                            // Destruir / abrir bloques de puerta final si fueron configurados
+                            if (m.getFinalGateBlocks() != null && !m.getFinalGateBlocks().isEmpty()) {
+                                for (BlockPos gp : m.getFinalGateBlocks()) {
+                                    level.setBlockAndUpdate(gp, Blocks.AIR.defaultBlockState());
+                                    level.playSound(null, gp.getX() + 0.5, gp.getY() + 0.5, gp.getZ() + 0.5, SoundEvents.ZOMBIE_BREAK_WOODEN_DOOR, SoundSource.BLOCKS, 1.2f, 0.9f);
+                                    level.sendParticles(ParticleTypes.EXPLOSION, gp.getX() + 0.5, gp.getY() + 0.5, gp.getZ() + 0.5, 4, 0.3, 0.3, 0.3, 0.05);
+                                }
+                                broadcastToRegistered(server, session, new ModPackets.NotificationPayload(
+                                        "§6§l¡La puerta final se ha abierto! ¡Avancen a la zona final!",
+                                        0xFFF59E0B
+                                ));
+                            }
 
                             level.playSound(null, center.getX(), center.getY(), center.getZ(), SoundEvents.WITHER_SPAWN, SoundSource.HOSTILE, 1.0f, 0.9f);
                             broadcastToRegistered(server, session, new ModPackets.NotificationPayload(
@@ -878,7 +918,10 @@ public class IncursionManager {
                         MissionManager.syncToAll(server);
 
                         level.playSound(null, escapePos.getX(), escapePos.getY(), escapePos.getZ(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.PLAYERS, 1.5f, 1.0f);
-                        // Mensaje de completado removido a petición del usuario para evitar redundancia con la UI superior
+                        broadcastToRegistered(server, session, new ModPackets.NotificationPayload(
+                                "§a§l¡Incursión completada con éxito!",
+                                0xFF22C55E
+                        ));
 
                         clearHud(server, session);
                         session.cleanMobs();

@@ -262,8 +262,14 @@ public class IncursionManager {
                         player.teleportTo(respawnPos.getX() + 0.5, respawnPos.getY() + 0.1, respawnPos.getZ() + 0.5);
                         session.aliveParticipants.add(player.getUUID());
                         session.fallenParticipants.remove(player.getUUID());
+
+                        // Otorgar 15 segundos de inmortalidad (Resistencia V = 100% de reducción de daño), regeneración y resistencia al fuego
+                        player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 300, 4, false, false, true));
+                        player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 300, 2, false, false, true));
+                        player.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 300, 0, false, false, true));
+
                         ServerPlayNetworking.send(player, new ModPackets.NotificationPayload(
-                                "§6¡Reapareciste en el último checkpoint! §fSigue combatiendo.",
+                                "§6¡Inmortalidad temporal (15s)! §fRecupera tus cosas y vuelve al combate.",
                                 0xFFF59E0B
                         ));
                     }
@@ -504,21 +510,10 @@ public class IncursionManager {
                             level.sendParticles(ParticleTypes.HAPPY_VILLAGER, ckX, ckY, ckZ, 20, 0.5, 0.5, 0.5, 0.1);
                             level.sendParticles(ParticleTypes.END_ROD, ckX, ckY + 1.0, ckZ, 10, 0.2, 0.5, 0.2, 0.05);
 
-                            String nextDest = (session.currentRouteIndex < m.getRoutePoints().size()) ?
-                                    (m.getRoutePointNames() != null && session.currentRouteIndex < m.getRoutePointNames().size() ?
-                                            m.getRoutePointNames().get(session.currentRouteIndex) : ("Checkpoint #" + (session.currentRouteIndex + 1))) : null;
-
-                            if (nextDest != null) {
-                                broadcastToRegistered(server, session, new ModPackets.NotificationPayload(
-                                        "§a§l¡Checkpoint alcanzado! §fContinúa hacia §e" + nextDest,
-                                        0xFF22C55E
-                                ));
-                            } else {
-                                broadcastToRegistered(server, session, new ModPackets.NotificationPayload(
-                                        "§a§l¡Checkpoint alcanzado! §f¡Despeja las oleadas restantes!",
-                                        0xFF22C55E
-                                ));
-                            }
+                            broadcastToRegistered(server, session, new ModPackets.NotificationPayload(
+                                    "§a§lCheckpoint Alcanzado!",
+                                    0xFF22C55E
+                            ));
                             syncHud(server, session);
                         }
                     }
@@ -603,21 +598,10 @@ public class IncursionManager {
                             level.sendParticles(ParticleTypes.HAPPY_VILLAGER, ckX, ckY, ckZ, 20, 0.5, 0.5, 0.5, 0.1);
                             level.sendParticles(ParticleTypes.END_ROD, ckX, ckY + 1.0, ckZ, 10, 0.2, 0.5, 0.2, 0.05);
 
-                            String nextDest = (session.currentRouteIndex < m.getRoutePoints().size()) ?
-                                    (m.getRoutePointNames() != null && session.currentRouteIndex < m.getRoutePointNames().size() ?
-                                            m.getRoutePointNames().get(session.currentRouteIndex) : ("Checkpoint #" + (session.currentRouteIndex + 1))) : null;
-
-                            if (nextDest != null) {
-                                broadcastToRegistered(server, session, new ModPackets.NotificationPayload(
-                                        "§a§l¡Checkpoint alcanzado! §fContinúa hacia §e" + nextDest,
-                                        0xFF22C55E
-                                ));
-                            } else {
-                                broadcastToRegistered(server, session, new ModPackets.NotificationPayload(
-                                        "§a§l¡Checkpoint alcanzado! §f¡Despeja las oleadas restantes!",
-                                        0xFF22C55E
-                                ));
-                            }
+                            broadcastToRegistered(server, session, new ModPackets.NotificationPayload(
+                                    "§a§lCheckpoint Alcanzado!",
+                                    0xFF22C55E
+                            ));
                             syncHud(server, session);
                         }
                     }
@@ -652,7 +636,7 @@ public class IncursionManager {
 
                             level.playSound(null, center.getX(), center.getY(), center.getZ(), SoundEvents.WITHER_SPAWN, SoundSource.HOSTILE, 0.8f, 1.4f);
                             broadcastToRegistered(server, session, new ModPackets.NotificationPayload(
-                                    "§c§l¡Oleada " + session.currentWave + "/" + m.getTotalWaves() + "! ¡Sigan avanzando!",
+                                    "§c§l¡Sigan avanzando!",
                                     0xFFEF4444
                             ));
                         }
@@ -663,47 +647,28 @@ public class IncursionManager {
                     updateParticipants(server, session, playersInZone);
                     session.lootingTicks--;
 
-                    // Monitorear cofres saqueados que se vacían
+                    // Monitorear cofres saqueados que se vacían SOLO si un jugador los abrió
                     if (!session.activeChests.isEmpty()) {
                         for (BlockPos cp : new ArrayList<>(session.activeChests)) {
-                            if (level.getBlockEntity(cp) instanceof ChestBlockEntity chest && chest.isEmpty()) {
+                            Set<String> looters = session.chestLooters.get(cp);
+                            boolean wasOpenedByPlayer = looters != null && !looters.isEmpty();
+                            if (wasOpenedByPlayer && level.getBlockEntity(cp) instanceof ChestBlockEntity chest && chest.isEmpty()) {
                                 session.activeChests.remove(cp);
                                 level.setBlockAndUpdate(cp, Blocks.AIR.defaultBlockState());
                                 level.playSound(null, cp.getX() + 0.5, cp.getY() + 0.5, cp.getZ() + 0.5, SoundEvents.GENERIC_EXPLODE, SoundSource.BLOCKS, 1.2f, 1.2f);
                                 level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, cp.getX() + 0.5, cp.getY() + 0.8, cp.getZ() + 0.5, 25, 0.3, 0.6, 0.3, 0.03);
                                 level.sendParticles(ParticleTypes.SMOKE, cp.getX() + 0.5, cp.getY() + 0.5, cp.getZ() + 0.5, 15, 0.3, 0.4, 0.3, 0.02);
 
-                                Set<String> looters = session.chestLooters.get(cp);
-                                List<String> looterList = looters != null ? new ArrayList<>(looters) : new ArrayList<>();
-                                if (looterList.isEmpty()) {
-                                    ServerPlayer nearest = null;
-                                    double minD2 = 64.0;
-                                    for (UUID uuid : session.registeredParticipants) {
-                                        ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
-                                        if (sp != null && sp.distanceToSqr(cp.getX() + 0.5, cp.getY() + 0.5, cp.getZ() + 0.5) < minD2) {
-                                            nearest = sp;
-                                            minD2 = sp.distanceToSqr(cp.getX() + 0.5, cp.getY() + 0.5, cp.getZ() + 0.5);
-                                        }
-                                    }
-                                    if (nearest != null) looterList.add(nearest.getName().getString());
-                                }
+                                List<String> looterList = new ArrayList<>(looters);
                                 int cNum = session.chestNumbers.getOrDefault(cp, 1);
-                                String announcement;
-                                if (looterList.isEmpty()) {
-                                    announcement = "§6El cofre #" + cNum + " fue saqueado";
-                                } else if (looterList.size() == 1) {
-                                    announcement = "§6" + looterList.get(0) + " §ftomó cosas del §6cofre #" + cNum;
-                                } else {
-                                    String last = looterList.remove(looterList.size() - 1);
-                                    announcement = "§6" + String.join(", ", looterList) + " §fy §6" + last + " §ftomaron cosas del §6cofre #" + cNum;
-                                }
+                                String looterName = looterList.isEmpty() ? "Un superviviente" : looterList.get(looterList.size() - 1);
+                                String announcement = "§6" + looterName + " §ftomó cosas del §6cofre #" + cNum;
+
                                 broadcastToRegistered(server, session, new ModPackets.NotificationPayload(announcement, 0xFFF59E0B));
                                 syncHud(server, session);
                             }
                         }
                     }
-
-
 
                     if (session.lootingTicks <= 0) {
                         session.state = IncursionState.ESCAPE_PHASE;
@@ -723,40 +688,23 @@ public class IncursionManager {
                 case ESCAPE_PHASE -> {
                     updateParticipants(server, session, playersInZone);
 
-                    // Monitorear cofres que se sigan vaciando en el escape
+                    // Monitorear cofres que se sigan vaciando en el escape SOLO si un jugador los abrió
                     if (!session.activeChests.isEmpty()) {
                         for (BlockPos cp : new ArrayList<>(session.activeChests)) {
-                            if (level.getBlockEntity(cp) instanceof ChestBlockEntity chest && chest.isEmpty()) {
+                            Set<String> looters = session.chestLooters.get(cp);
+                            boolean wasOpenedByPlayer = looters != null && !looters.isEmpty();
+                            if (wasOpenedByPlayer && level.getBlockEntity(cp) instanceof ChestBlockEntity chest && chest.isEmpty()) {
                                 session.activeChests.remove(cp);
                                 level.setBlockAndUpdate(cp, Blocks.AIR.defaultBlockState());
                                 level.playSound(null, cp.getX() + 0.5, cp.getY() + 0.5, cp.getZ() + 0.5, SoundEvents.GENERIC_EXPLODE, SoundSource.BLOCKS, 1.2f, 1.2f);
                                 level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, cp.getX() + 0.5, cp.getY() + 0.8, cp.getZ() + 0.5, 25, 0.3, 0.6, 0.3, 0.03);
                                 level.sendParticles(ParticleTypes.SMOKE, cp.getX() + 0.5, cp.getY() + 0.5, cp.getZ() + 0.5, 15, 0.3, 0.4, 0.3, 0.02);
 
-                                Set<String> looters = session.chestLooters.get(cp);
-                                List<String> looterList = looters != null ? new ArrayList<>(looters) : new ArrayList<>();
-                                if (looterList.isEmpty()) {
-                                    ServerPlayer nearest = null;
-                                    double minD2 = 64.0;
-                                    for (UUID uuid : session.registeredParticipants) {
-                                        ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
-                                        if (sp != null && sp.distanceToSqr(cp.getX() + 0.5, cp.getY() + 0.5, cp.getZ() + 0.5) < minD2) {
-                                            nearest = sp;
-                                            minD2 = sp.distanceToSqr(cp.getX() + 0.5, cp.getY() + 0.5, cp.getZ() + 0.5);
-                                        }
-                                    }
-                                    if (nearest != null) looterList.add(nearest.getName().getString());
-                                }
+                                List<String> looterList = new ArrayList<>(looters);
                                 int cNum = session.chestNumbers.getOrDefault(cp, 1);
-                                String announcement;
-                                if (looterList.isEmpty()) {
-                                    announcement = "§6El cofre #" + cNum + " fue saqueado";
-                                } else if (looterList.size() == 1) {
-                                    announcement = "§6" + looterList.get(0) + " §ftomó cosas del §6cofre #" + cNum;
-                                } else {
-                                    String last = looterList.remove(looterList.size() - 1);
-                                    announcement = "§6" + String.join(", ", looterList) + " §fy §6" + last + " §ftomaron cosas del §6cofre #" + cNum;
-                                }
+                                String looterName = looterList.isEmpty() ? "Un superviviente" : looterList.get(looterList.size() - 1);
+                                String announcement = "§6" + looterName + " §ftomó cosas del §6cofre #" + cNum;
+
                                 broadcastToRegistered(server, session, new ModPackets.NotificationPayload(announcement, 0xFFF59E0B));
                                 syncHud(server, session);
                             }
@@ -1006,6 +954,16 @@ public class IncursionManager {
                     }
                 } catch (Exception ignored) {}
             }
+        }
+
+        // Si no se configuró botín en la misión, dotar a los cofres con suministros de supervivencia
+        if (pool.isEmpty()) {
+            pool.add(new ItemStack(Items.GOLDEN_APPLE, 2));
+            pool.add(new ItemStack(Items.IRON_INGOT, 8));
+            pool.add(new ItemStack(Items.GOLD_INGOT, 6));
+            pool.add(new ItemStack(Items.DIAMOND, 2));
+            pool.add(new ItemStack(Items.COOKED_BEEF, 12));
+            pool.add(new ItemStack(Items.ARROW, 16));
         }
 
         RandomSource rnd = level.getRandom();

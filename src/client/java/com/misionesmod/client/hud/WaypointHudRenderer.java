@@ -132,6 +132,11 @@ public class WaypointHudRenderer implements HudElement {
         if (text.contains("Despejen a los enemigos")) {
             activeNotifications.removeIf(an -> an.text.contains("misión inicia en") || an.text.contains("reunidos, la misión inicia"));
         }
+        if (text.contains("Sigan avanzando") || text.contains("Oleada Final")) {
+            activeNotifications.removeIf(an -> an.text.contains("Has despejado el camino, siguiente oleada en"));
+        }
+        boolean isWaveCooldown = text.contains("Has despejado el camino, siguiente oleada en");
+        boolean isChestLoot = text.contains("tomó cosas del") && text.contains("cofre #");
         boolean isChest = text.contains("Cofre ") && (text.contains("registrado") || text.contains("desregistrado"));
         boolean isSpawn = text.contains("Spawn ") && text.contains("añadido");
         boolean isEscape = text.contains("Punto de Escape establecido") || text.contains("Esperando al equipo en el punto de escape");
@@ -142,6 +147,8 @@ public class WaypointHudRenderer implements HudElement {
         for (ActiveNotification an : activeNotifications) {
             boolean match = false;
             if (isCountdown && (an.text.contains("misión inicia en") || an.text.contains("reunidos, la misión inicia"))) match = true;
+            else if (isWaveCooldown && an.text.contains("Has despejado el camino, siguiente oleada en")) match = true;
+            else if (isChestLoot && an.text.contains("tomó cosas del") && an.text.contains("cofre #")) match = true;
             else if (isChest && an.text.contains("Cofre ") && (an.text.contains("registrado") || an.text.contains("desregistrado"))) match = true;
             else if (isSpawn && an.text.contains("Spawn ") && an.text.contains("añadido")) match = true;
             else if (isEscape && (an.text.contains("Punto de Escape") || an.text.contains("Esperando al equipo en el punto de escape"))) match = true;
@@ -307,7 +314,7 @@ public class WaypointHudRenderer implements HudElement {
         if (incursionStatus.active) {
             String incursionText;
             int bannerColor;
-            if (incursionStatus.isEscapePhase) {
+            if (incursionStatus.isEscapePhase || incursionStatus.currentWave >= incursionStatus.totalWaves) {
                 int dist = 0;
                 String arrow = "▲";
                 if (incursionStatus.extractionPos != null) {
@@ -322,17 +329,16 @@ public class WaypointHudRenderer implements HudElement {
                     else if (diff > 20 && diff < 160) arrow = "▶";
                     else arrow = "▼";
                 }
-                incursionText = "§e§l¡Baja a la Salida! §e" + arrow + " §a(" + dist + "m) §7| §fVivos: §a" + incursionStatus.alivePlayers + "/" + incursionStatus.totalPlayers;
+                incursionText = "§e" + arrow + " §fSalida §a(" + dist + "m) §7| §c§lOleada Final : " + incursionStatus.totalWaves + "/" + incursionStatus.totalWaves + " §7| §fVivos: §a" + incursionStatus.alivePlayers + "/" + incursionStatus.totalPlayers;
                 bannerColor = 0xFFF59E0B;
             } else if (incursionStatus.isLootingPhase) {
                 incursionText = "§a§l¡Fase de Botín! §fSaqueen los cofres §e(" + incursionStatus.lootingSeconds + "s) §7| §fVivos: §a" + incursionStatus.alivePlayers + "/" + incursionStatus.totalPlayers;
                 bannerColor = 0xFF22C55E;
-            } else if (incursionStatus.currentWave == incursionStatus.totalWaves) {
-                incursionText = "§4§lOleada Final §7| §cMobs: " + incursionStatus.remainingEnemies +
-                        " §7| §aVivos: " + incursionStatus.alivePlayers + "/" + incursionStatus.totalPlayers;
-                bannerColor = 0xFFEF4444;
+            } else if (incursionStatus.remainingEnemies == 0 || "Siguiente Oleada".equals(incursionStatus.currentObjectiveTitle)) {
+                incursionText = "§a§lCamino despejado §7| §fOleada " + incursionStatus.currentWave + "/" + incursionStatus.totalWaves + " §7| §fVivos: §a" + incursionStatus.alivePlayers + "/" + incursionStatus.totalPlayers;
+                bannerColor = 0xFF22C55E;
             } else {
-                String objSuffix = (incursionStatus.currentObjectiveTitle != null && !incursionStatus.currentObjectiveTitle.isEmpty()) ?
+                String objSuffix = (incursionStatus.currentObjectiveTitle != null && !incursionStatus.currentObjectiveTitle.isEmpty() && !incursionStatus.currentObjectiveTitle.startsWith("Oleada")) ?
                         " §7| §b" + incursionStatus.currentObjectiveTitle : "";
                 incursionText = "§c§lOleada " + incursionStatus.currentWave + "/" + incursionStatus.totalWaves +
                         " §7| §cMobs: " + incursionStatus.remainingEnemies + objSuffix;
@@ -559,6 +565,12 @@ public class WaypointHudRenderer implements HudElement {
         renderFloatingTrackerWidget(graphics, font, screenWidth, screenHeight, player);
     }
 
+    private static float cornerAnimProgress = 0.0f;
+    private static long lastCornerFrameTime = 0L;
+    private static List<String> cachedLines = new ArrayList<>();
+    private static List<Integer> cachedColors = new ArrayList<>();
+    private static Map<Integer, ItemStack> cachedIcons = new HashMap<>();
+
     private void renderFloatingTrackerWidget(GuiGraphicsExtractor graphics, Font font, int screenWidth, int screenHeight, Player player) {
         if (!ClientHudConfig.widgetEnabled) return;
         if (com.misionesmod.client.gui.IncursionSetupSession.active) return;
@@ -675,14 +687,8 @@ public class WaypointHudRenderer implements HudElement {
                             lines.add("  §7Cofres en la estructura: §e" + incursionStatus.chestsCount);
                             lineColors.add(0xFFCBD5E1);
                         }
-                    } else {
-                        if (incursionStatus.currentObjectiveTitle != null && !incursionStatus.currentObjectiveTitle.isEmpty()) {
-                            lines.add("  §7" + arrow + " Objetivo: §f" + incursionStatus.currentObjectiveTitle + " §a(" + dist + "m)");
-                            lineColors.add(0xFFE2E8F0);
-                        }
-                        lines.add("  §7Oleada: §c" + incursionStatus.currentWave + "/" + incursionStatus.totalWaves + " §7(Mobs: §e" + incursionStatus.remainingEnemies + "§7)");
-                        lineColors.add(0xFFCBD5E1);
                     }
+                    // Durante combate de oleadas normales se quita el texto duplicado (ya se ve arriba al centro)
                 } else if (m.getTargetPos() != null) {
                     lines.add("  §f" + arrow + " §7Inicio: §fX:" + m.getTargetPos().getX() + " Z:" + m.getTargetPos().getZ() + " §a(" + dist + "m)");
                     lineColors.add(0xFF94A3B8);
@@ -723,15 +729,35 @@ public class WaypointHudRenderer implements HudElement {
             }
         }
 
-        if (lines.isEmpty()) return;
+        // Animación suave de entrada y salida de la tarjeta
+        long dt = (lastCornerFrameTime == 0L) ? 16L : Math.min(100L, now - lastCornerFrameTime);
+        lastCornerFrameTime = now;
+        float animSpeed = (float) dt / 250.0f;
+
+        if (!lines.isEmpty()) {
+            cornerAnimProgress = Math.min(1.0f, cornerAnimProgress + animSpeed);
+            cachedLines = new ArrayList<>(lines);
+            cachedColors = new ArrayList<>(lineColors);
+            cachedIcons = new HashMap<>(lineItemIcons);
+        } else {
+            cornerAnimProgress = Math.max(0.0f, cornerAnimProgress - animSpeed);
+        }
+
+        if (cornerAnimProgress <= 0.01f) return;
+
+        List<String> activeLines = !lines.isEmpty() ? lines : cachedLines;
+        List<Integer> activeColors = !lines.isEmpty() ? lineColors : cachedColors;
+        Map<Integer, ItemStack> activeIcons = !lines.isEmpty() ? lineItemIcons : cachedIcons;
+
+        if (activeLines.isEmpty()) return;
 
         int maxTextW = 120;
-        for (String l : lines) {
+        for (String l : activeLines) {
             maxTextW = Math.max(maxTextW, font.width(l));
         }
-        boolean hasAnyIcons = !lineItemIcons.isEmpty();
+        boolean hasAnyIcons = !activeIcons.isEmpty();
         int cardW = maxTextW + 14 + (hasAnyIcons ? 22 : 0);
-        int cardH = lines.size() * 11 + 10;
+        int cardH = activeLines.size() * 11 + 10;
         if (hasAnyIcons) {
             cardH = Math.max(cardH, 28);
         }
@@ -761,16 +787,21 @@ public class WaypointHudRenderer implements HudElement {
             }
         }
 
-        graphics.fill(posX, posY, posX + cardW, posY + cardH, 0xCC090D16);
-        graphics.outline(posX, posY, cardW, cardH, 0xFF334155);
-        graphics.fill(posX + 1, posY + 1, posX + cardW - 1, posY + 3, 0xFF1E293B);
+        float alpha = cornerAnimProgress;
+        boolean isRightSide = (ClientHudConfig.cornerPosition == ClientHudConfig.CornerPosition.TOP_RIGHT || ClientHudConfig.cornerPosition == ClientHudConfig.CornerPosition.BOTTOM_RIGHT);
+        float slideOffset = (1.0f - cornerAnimProgress) * (isRightSide ? 30.0f : -30.0f);
+        int drawX = posX + (int) slideOffset;
+
+        graphics.fill(drawX, posY, drawX + cardW, posY + cardH, applyAlpha(0xCC090D16, alpha));
+        graphics.outline(drawX, posY, cardW, cardH, applyAlpha(0xFF334155, alpha));
+        graphics.fill(drawX + 1, posY + 1, drawX + cardW - 1, posY + 3, applyAlpha(0xFF1E293B, alpha));
 
         int lineY = posY + 5;
-        for (int i = 0; i < lines.size(); i++) {
-            graphics.text(font, Component.literal(lines.get(i)), posX + 6, lineY, lineColors.get(i));
-            ItemStack iconStack = lineItemIcons.get(i);
+        for (int i = 0; i < activeLines.size(); i++) {
+            graphics.text(font, Component.literal(activeLines.get(i)), drawX + 6, lineY, applyAlpha(activeColors.get(i), alpha));
+            ItemStack iconStack = activeIcons.get(i);
             if (iconStack != null && !iconStack.isEmpty()) {
-                int itemX = posX + cardW - 19;
+                int itemX = drawX + cardW - 19;
                 int itemY = lineY - 4;
                 graphics.item(iconStack, itemX, itemY);
             }

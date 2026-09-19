@@ -178,18 +178,29 @@ public class MisionesMod implements ModInitializer {
             com.misionesmod.incursion.IncursionManager.clear();
         });
 
-        // 5.5. Control y bloqueo de cofres en incursiones
+        // 5.5. Control y bloqueo de cofres en incursiones y registro de bloques colocados por jugadores
         net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
             if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer) {
                 net.minecraft.core.BlockPos pos = hitResult.getBlockPos();
-                if (com.misionesmod.incursion.IncursionManager.isChestLocked(level, pos, serverPlayer)) {
-                    ServerPlayNetworking.send(serverPlayer, new ModPackets.NotificationPayload(
-                            "§c¡Los cofres están bloqueados! Despeja las oleadas primero.",
-                            0xFFEF4444
-                    ));
-                    return net.minecraft.world.InteractionResult.FAIL;
+
+                // Si es un cofre de la incursión
+                if (level.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.ChestBlock) {
+                    if (com.misionesmod.incursion.IncursionManager.isChestLocked(level, pos, serverPlayer)) {
+                        String lockMsg = com.misionesmod.incursion.IncursionManager.getChestLockMessage(pos);
+                        ServerPlayNetworking.send(serverPlayer, new ModPackets.NotificationPayload(
+                                lockMsg != null ? lockMsg : "§c✕ Este cofre está sellado.",
+                                0xFFEF4444
+                        ));
+                        return net.minecraft.world.InteractionResult.FAIL;
+                    }
+                    com.misionesmod.incursion.IncursionManager.onChestOpened(level, pos, serverPlayer);
                 }
-                com.misionesmod.incursion.IncursionManager.onChestOpened(level, pos, serverPlayer);
+
+                // Registrar bloques colocados por los jugadores en la estructura
+                if (player.getItemInHand(hand).getItem() instanceof net.minecraft.world.item.BlockItem) {
+                    net.minecraft.core.BlockPos placedPos = pos.relative(hitResult.getDirection());
+                    com.misionesmod.incursion.IncursionManager.onBlockPlaced(level, serverPlayer, placedPos);
+                }
             }
             return net.minecraft.world.InteractionResult.PASS;
         });
@@ -217,29 +228,6 @@ public class MisionesMod implements ModInitializer {
             DropManager.tickDrops(server);
             MissionManager.tickMissions(server);
             com.misionesmod.incursion.IncursionManager.tick(server);
-        });
-
-        net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
-            if (!world.isClientSide()) {
-                BlockPos pos = hitResult.getBlockPos();
-                if (world.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.ChestBlock) {
-                    for (Mission m : MissionManager.getMissions()) {
-                        if ("INCURSION".equalsIgnoreCase(m.getObjectiveType()) && !m.isCompleted()) {
-                            boolean isMissionChest = (m.getChestPoints() != null && m.getChestPoints().contains(pos))
-                                    || (m.getCustomChestPositions() != null && m.getCustomChestPositions().contains(pos));
-                            if (isMissionChest) {
-                                if (!com.misionesmod.incursion.IncursionManager.isSessionActive(m.getId())) {
-                                    if (!player.isCreative()) {
-                                        player.sendSystemMessage(Component.literal("§c✕ Este cofre está sellado hasta que inicie la misión."));
-                                        return net.minecraft.world.InteractionResult.FAIL;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            return net.minecraft.world.InteractionResult.PASS;
         });
 
         LOGGER.info("MisionesMod inicializado con éxito.");

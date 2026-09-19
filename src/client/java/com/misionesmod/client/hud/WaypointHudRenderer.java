@@ -128,15 +128,21 @@ public class WaypointHudRenderer implements HudElement {
         if (text == null || text.isBlank()) return;
         long now = System.currentTimeMillis();
 
+        boolean isImmortality = text.contains("Inmortalidad temporal");
+        if (isImmortality) {
+            // Si hay cuenta regresiva de inmortalidad, mantener solo ese mensaje limpio en pantalla
+            activeNotifications.removeIf(an -> !an.text.contains("Inmortalidad temporal"));
+        }
+
         boolean isCountdown = text.contains("misión inicia en") || text.contains("reunidos, la misión inicia");
         if (text.contains("Despejen a los enemigos")) {
             activeNotifications.removeIf(an -> an.text.contains("misión inicia en") || an.text.contains("reunidos, la misión inicia"));
         }
-        if (text.contains("Sigan avanzando") || text.contains("Oleada Final")) {
-            activeNotifications.removeIf(an -> an.text.contains("Has despejado el camino, siguiente oleada en"));
+        if (text.contains("Sigan avanzando") || text.contains("Oleada Final") || text.contains("Toma el loot")) {
+            activeNotifications.removeIf(an -> an.text.contains("Siguiente oleada en") || an.text.contains("Has despejado el camino"));
         }
-        boolean isWaveCooldown = text.contains("Has despejado el camino, siguiente oleada en");
-        boolean isChestLoot = text.contains("tomó cosas del") && text.contains("cofre #");
+        boolean isWaveCooldown = text.contains("Siguiente oleada en") || text.contains("Has despejado el camino, siguiente oleada en");
+        boolean isChestLoot = (text.contains("tomó cosas de un cofre") || text.contains("tomó cosas del")) && (text.contains("cofre") || text.contains("botín"));
         boolean isChest = text.contains("Cofre ") && (text.contains("registrado") || text.contains("desregistrado"));
         boolean isSpawn = text.contains("Spawn ") && text.contains("añadido");
         boolean isEscape = text.contains("Punto de Escape establecido") || text.contains("Esperando al equipo en el punto de escape");
@@ -146,9 +152,10 @@ public class WaypointHudRenderer implements HudElement {
 
         for (ActiveNotification an : activeNotifications) {
             boolean match = false;
-            if (isCountdown && (an.text.contains("misión inicia en") || an.text.contains("reunidos, la misión inicia"))) match = true;
-            else if (isWaveCooldown && an.text.contains("Has despejado el camino, siguiente oleada en")) match = true;
-            else if (isChestLoot && an.text.contains("tomó cosas del") && an.text.contains("cofre #")) match = true;
+            if (isImmortality && an.text.contains("Inmortalidad temporal")) match = true;
+            else if (isCountdown && (an.text.contains("misión inicia en") || an.text.contains("reunidos, la misión inicia"))) match = true;
+            else if (isWaveCooldown && (an.text.contains("Siguiente oleada en") || an.text.contains("Has despejado el camino, siguiente oleada en"))) match = true;
+            else if (isChestLoot && (an.text.contains("tomó cosas de un cofre") || an.text.contains("tomó cosas del"))) match = true;
             else if (isChest && an.text.contains("Cofre ") && (an.text.contains("registrado") || an.text.contains("desregistrado"))) match = true;
             else if (isSpawn && an.text.contains("Spawn ") && an.text.contains("añadido")) match = true;
             else if (isEscape && (an.text.contains("Punto de Escape") || an.text.contains("Esperando al equipo en el punto de escape"))) match = true;
@@ -161,7 +168,7 @@ public class WaypointHudRenderer implements HudElement {
                 an.text = text;
                 an.borderColor = borderColor;
                 an.startTime = now;
-                an.duration = 4200L;
+                an.duration = isImmortality ? 1600L : 4200L;
                 return;
             }
         }
@@ -171,8 +178,8 @@ public class WaypointHudRenderer implements HudElement {
             activeNotifications.remove(0);
         }
 
-        // Duración cómoda de 4.2 segundos
-        activeNotifications.add(new ActiveNotification(text, borderColor, 4200L));
+        // Duración cómoda de 4.2 segundos (o 1.6s si es temporizador de inmortalidad)
+        activeNotifications.add(new ActiveNotification(text, borderColor, isImmortality ? 1600L : 4200L));
     }
 
     public static synchronized void clear() {
@@ -294,7 +301,6 @@ public class WaypointHudRenderer implements HudElement {
                     if (horizDist <= 1.5 && Math.abs(dy) <= 2.2) {
                         w.removing = true;
                         w.removeStartTime = now;
-                        mc.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.PLAYER_LEVELUP, 1.2f));
                         // Auto-reclamar de inmediato la misión al llegar (excepto incursiones)
                         for (com.misionesmod.mission.Mission m : com.misionesmod.client.MisionesModClient.clientMissions) {
                             if ("INCURSION".equalsIgnoreCase(m.getObjectiveType())) continue;
@@ -329,19 +335,23 @@ public class WaypointHudRenderer implements HudElement {
                     else if (diff > 20 && diff < 160) arrow = "▶";
                     else arrow = "▼";
                 }
-                incursionText = "§e" + arrow + " §fSalida §a(" + dist + "m) §7| §c§lOleada Final : " + incursionStatus.totalWaves + "/" + incursionStatus.totalWaves + " §7| §fVivos: §a" + incursionStatus.alivePlayers + "/" + incursionStatus.totalPlayers;
+                String lootTimerStr = (incursionStatus.lootingSeconds > 0 && incursionStatus.chestsCount > 0) ?
+                        " §7| §6Loot: " + incursionStatus.lootingSeconds + "s" : "";
+                incursionText = "§e" + arrow + " §fSalida §a(" + dist + "m)" + lootTimerStr +
+                        " §7| §c§lOleada Final §7| §fVivos: §a" + incursionStatus.alivePlayers + "/" + incursionStatus.totalPlayers;
                 bannerColor = 0xFFF59E0B;
             } else if (incursionStatus.isLootingPhase) {
                 incursionText = "§a§l¡Fase de Botín! §fSaqueen los cofres §e(" + incursionStatus.lootingSeconds + "s) §7| §fVivos: §a" + incursionStatus.alivePlayers + "/" + incursionStatus.totalPlayers;
                 bannerColor = 0xFF22C55E;
-            } else if (incursionStatus.remainingEnemies == 0 || "Siguiente Oleada".equals(incursionStatus.currentObjectiveTitle)) {
+            } else if (incursionStatus.remainingEnemies == 0) {
                 incursionText = "§a§lCamino despejado §7| §fOleada " + incursionStatus.currentWave + "/" + incursionStatus.totalWaves + " §7| §fVivos: §a" + incursionStatus.alivePlayers + "/" + incursionStatus.totalPlayers;
                 bannerColor = 0xFF22C55E;
             } else {
-                String objSuffix = (incursionStatus.currentObjectiveTitle != null && !incursionStatus.currentObjectiveTitle.isEmpty() && !incursionStatus.currentObjectiveTitle.startsWith("Oleada")) ?
+                String ckSuffix = (incursionStatus.currentObjectiveTitle != null && incursionStatus.currentObjectiveTitle.startsWith("Checkpoint")) ?
                         " §7| §b" + incursionStatus.currentObjectiveTitle : "";
                 incursionText = "§c§lOleada " + incursionStatus.currentWave + "/" + incursionStatus.totalWaves +
-                        " §7| §cMobs: " + incursionStatus.remainingEnemies + objSuffix;
+                        " §7| §cMobs: " + incursionStatus.remainingEnemies + ckSuffix +
+                        " §7| §fVivos: §a" + incursionStatus.alivePlayers + "/" + incursionStatus.totalPlayers;
                 bannerColor = 0xFFEF4444;
             }
 
@@ -636,20 +646,15 @@ public class WaypointHudRenderer implements HudElement {
                 continue;
             }
 
-            // Misión activa
-            BlockPos targetPos = null;
-            String obj = m.getObjectiveType();
-            if ("INCURSION".equalsIgnoreCase(obj)) {
-                if (incursionStatus.active && incursionStatus.currentObjectivePos != null) {
-                    targetPos = incursionStatus.currentObjectivePos;
-                } else if (incursionStatus.active && incursionStatus.isEscapePhase && incursionStatus.extractionPos != null) {
-                    targetPos = incursionStatus.extractionPos;
-                } else if (m.getTargetPos() != null) {
-                    targetPos = m.getTargetPos();
-                }
-            } else if (m.getTargetPos() != null) {
-                targetPos = m.getTargetPos();
+            // Para misiones de incursión, no mostrar en esta tarjeta de esquina mientras está activa
+            // (para no repetir con la barra superior de oleadas), solo mostrar al completarse
+            if ("INCURSION".equalsIgnoreCase(m.getObjectiveType())) {
+                continue;
             }
+
+            // Misión activa
+            BlockPos targetPos = m.getTargetPos();
+            String obj = m.getObjectiveType();
 
             String arrow = "▲";
             int dist = 0;
@@ -669,31 +674,7 @@ public class WaypointHudRenderer implements HudElement {
             lines.add("§b⚔ " + m.getTitle());
             lineColors.add(0xFF38BDF8);
 
-            if ("INCURSION".equalsIgnoreCase(obj)) {
-                if (incursionStatus.active && m.getId().equalsIgnoreCase(incursionStatus.missionId)) {
-                    if (incursionStatus.isEscapePhase) {
-                        lines.add("  §e¡Evacúen inmediatamente hacia la salida!");
-                        lineColors.add(0xFFF59E0B);
-                        lines.add("  §7Supervivientes: §a" + incursionStatus.alivePlayers + "/" + incursionStatus.totalPlayers);
-                        lineColors.add(0xFFE2E8F0);
-                        if (incursionStatus.chestsCount > 0) {
-                            lines.add("  §7Cofres en la estructura: §e" + incursionStatus.chestsCount);
-                            lineColors.add(0xFFCBD5E1);
-                        }
-                    } else if (incursionStatus.isLootingPhase) {
-                        lines.add("  §6¡Fase de Botín! Saquen los cofres §e(" + incursionStatus.lootingSeconds + "s)");
-                        lineColors.add(0xFFF59E0B);
-                        if (incursionStatus.chestsCount > 0) {
-                            lines.add("  §7Cofres en la estructura: §e" + incursionStatus.chestsCount);
-                            lineColors.add(0xFFCBD5E1);
-                        }
-                    }
-                    // Durante combate de oleadas normales se quita el texto duplicado (ya se ve arriba al centro)
-                } else if (m.getTargetPos() != null) {
-                    lines.add("  §f" + arrow + " §7Inicio: §fX:" + m.getTargetPos().getX() + " Z:" + m.getTargetPos().getZ() + " §a(" + dist + "m)");
-                    lineColors.add(0xFF94A3B8);
-                }
-            } else if ("OBTENCION".equalsIgnoreCase(obj) || "CRAFTEO".equalsIgnoreCase(obj) || "COCINAR".equalsIgnoreCase(obj)) {
+            if ("OBTENCION".equalsIgnoreCase(obj) || "CRAFTEO".equalsIgnoreCase(obj) || "COCINAR".equalsIgnoreCase(obj)) {
                 int found = 0;
                 String reqId = m.getRequiredItemId();
                 int req = m.getRequiredCount();
@@ -729,10 +710,10 @@ public class WaypointHudRenderer implements HudElement {
             }
         }
 
-        // Animación suave de entrada y salida de la tarjeta
+        // Animación suave de entrada y salida de la tarjeta (smoothstep)
         long dt = (lastCornerFrameTime == 0L) ? 16L : Math.min(100L, now - lastCornerFrameTime);
         lastCornerFrameTime = now;
-        float animSpeed = (float) dt / 250.0f;
+        float animSpeed = (float) dt / 320.0f;
 
         if (!lines.isEmpty()) {
             cornerAnimProgress = Math.min(1.0f, cornerAnimProgress + animSpeed);
@@ -743,7 +724,10 @@ public class WaypointHudRenderer implements HudElement {
             cornerAnimProgress = Math.max(0.0f, cornerAnimProgress - animSpeed);
         }
 
-        if (cornerAnimProgress <= 0.01f) return;
+        if (cornerAnimProgress <= 0.005f) return;
+
+        float t = cornerAnimProgress;
+        float smoothT = t * t * (3.0f - 2.0f * t);
 
         List<String> activeLines = !lines.isEmpty() ? lines : cachedLines;
         List<Integer> activeColors = !lines.isEmpty() ? lineColors : cachedColors;
@@ -787,9 +771,9 @@ public class WaypointHudRenderer implements HudElement {
             }
         }
 
-        float alpha = cornerAnimProgress;
+        float alpha = smoothT;
         boolean isRightSide = (ClientHudConfig.cornerPosition == ClientHudConfig.CornerPosition.TOP_RIGHT || ClientHudConfig.cornerPosition == ClientHudConfig.CornerPosition.BOTTOM_RIGHT);
-        float slideOffset = (1.0f - cornerAnimProgress) * (isRightSide ? 30.0f : -30.0f);
+        float slideOffset = (1.0f - smoothT) * (isRightSide ? 30.0f : -30.0f);
         int drawX = posX + (int) slideOffset;
 
         graphics.fill(drawX, posY, drawX + cardW, posY + cardH, applyAlpha(0xCC090D16, alpha));

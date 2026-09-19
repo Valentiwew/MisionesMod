@@ -68,6 +68,9 @@ public class IncursionManager {
         public final Map<BlockPos, Set<String>> chestLooters = new HashMap<>();
         public final Map<BlockPos, Integer> chestNumbers = new HashMap<>();
         public final Set<Integer> completedCheckpoints = new HashSet<>();
+        public final Set<BlockPos> playerPlacedBlocks = new HashSet<>();
+        public final Map<UUID, Integer> immortalityTicks = new HashMap<>();
+        public ServerLevel currentLevel = null;
 
         public IncursionSession(Mission mission) {
             this.mission = mission;
@@ -92,6 +95,8 @@ public class IncursionManager {
             chestLooters.clear();
             chestNumbers.clear();
             completedCheckpoints.clear();
+            playerPlacedBlocks.clear();
+            immortalityTicks.clear();
             cleanMobs();
         }
 
@@ -102,6 +107,16 @@ public class IncursionManager {
                 }
             }
             activeWaveMobs.clear();
+            if (currentLevel != null && mission.getTargetPos() != null) {
+                BlockPos center = mission.getTargetPos();
+                int r = Math.max(64, mission.getIncursionRadius() + 32);
+                net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(center).inflate(r, 64, r);
+                for (Mob mob : currentLevel.getEntitiesOfClass(Mob.class, box)) {
+                    if (mob.entityTags().contains("incursion_mob")) {
+                        mob.discard();
+                    }
+                }
+            }
         }
     }
 
@@ -112,15 +127,38 @@ public class IncursionManager {
         return session != null && session.state != IncursionState.WAITING_FOR_PLAYERS && session.state != IncursionState.COMPLETED;
     }
 
+    public static void onBlockPlaced(Level level, ServerPlayer player, BlockPos pos) {
+        for (IncursionSession s : sessions.values()) {
+            if (s.state != IncursionState.WAITING_FOR_PLAYERS && s.state != IncursionState.COMPLETED) {
+                if (s.registeredParticipants.contains(player.getUUID()) && isInsideIncursion(level, pos, s)) {
+                    s.playerPlacedBlocks.add(pos.immutable());
+                }
+            }
+        }
+    }
+
     public static boolean isChestLocked(net.minecraft.world.level.Level level, BlockPos pos, ServerPlayer player) {
         for (IncursionSession s : sessions.values()) {
-            if (s.state == IncursionState.WAVE_ACTIVE || s.state == IncursionState.WAVE_COOLDOWN) {
-                if (s.activeChests.contains(pos)) {
+            if (s.activeChests.contains(pos)) {
+                if (s.state == IncursionState.WAITING_FOR_PLAYERS || s.state == IncursionState.WAVE_ACTIVE || s.state == IncursionState.WAVE_COOLDOWN) {
                     return true;
                 }
             }
         }
         return false;
+    }
+
+    public static String getChestLockMessage(BlockPos pos) {
+        for (IncursionSession s : sessions.values()) {
+            if (s.activeChests.contains(pos)) {
+                if (s.state == IncursionState.WAITING_FOR_PLAYERS) {
+                    return "§c✕ Este cofre está sellado hasta que inicie la misión.";
+                } else if (s.state == IncursionState.WAVE_ACTIVE || s.state == IncursionState.WAVE_COOLDOWN) {
+                    return "§c¡Los cofres están bloqueados! Despeja las oleadas primero.";
+                }
+            }
+        }
+        return null;
     }
 
     public static void onChestOpened(net.minecraft.world.level.Level level, BlockPos pos, ServerPlayer player) {
@@ -182,7 +220,15 @@ public class IncursionManager {
             if (session.state == IncursionState.WAITING_FOR_PLAYERS || session.state == IncursionState.COMPLETED) {
                 continue;
             }
+            if (!session.registeredParticipants.contains(player.getUUID())) {
+                continue; // Solo afecta a los participantes registrados de la misión
+            }
             if (isInsideIncursion(level, pos, session)) {
+                // Si el bloque fue colocado por un jugador durante la incursión, permitir romperlo
+                if (session.playerPlacedBlocks.remove(pos)) {
+                    return true;
+                }
+
                 // Si es un cofre de la incursión
                 if (state.getBlock() instanceof ChestBlock) {
                     if (session.state == IncursionState.WAVE_ACTIVE || session.state == IncursionState.WAVE_COOLDOWN) {
@@ -205,9 +251,8 @@ public class IncursionManager {
                         }
                         session.activeChests.remove(pos);
                         session.chestLooters.computeIfAbsent(pos, k -> new LinkedHashSet<>()).add(player.getName().getString());
-                        int cNum = session.chestNumbers.getOrDefault(pos, 1);
                         broadcastToRegistered(level.getServer(), session, new ModPackets.NotificationPayload(
-                                "§6" + player.getName().getString() + " §ftomó cosas del §6cofre #" + cNum,
+                                "§6" + player.getName().getString() + " §ftomó cosas de un cofre",
                                 0xFFF59E0B
                         ));
                         syncHud(level.getServer(), session);
@@ -222,20 +267,6 @@ public class IncursionManager {
                             0xFFEF4444
                     ));
                     return false;
-                }
-            }
-        }
-
-        // 2. Proteger cofres registrados de misiones antes de iniciar
-        if (state.getBlock() instanceof ChestBlock) {
-            for (Mission m : MissionManager.getMissions()) {
-                if ("INCURSION".equalsIgnoreCase(m.getObjectiveType()) && !m.isCompleted()) {
-                    boolean isMissionChest = (m.getChestPoints() != null && m.getChestPoints().contains(pos))
-                            || (m.getCustomChestPositions() != null && m.getCustomChestPositions().contains(pos));
-                    if (isMissionChest && !player.isCreative()) {
-                        player.sendSystemMessage(Component.literal("§c✕ Este cofre está protegido por una misión y no puede destruirse."));
-                        return false;
-                    }
                 }
             }
         }
@@ -262,14 +293,16 @@ public class IncursionManager {
                         player.teleportTo(respawnPos.getX() + 0.5, respawnPos.getY() + 0.1, respawnPos.getZ() + 0.5);
                         session.aliveParticipants.add(player.getUUID());
                         session.fallenParticipants.remove(player.getUUID());
+                        session.immortalityTicks.put(player.getUUID(), 300);
 
-                        // Otorgar 15 segundos de inmortalidad (Resistencia V = 100% de reducción de daño), regeneración y resistencia al fuego
+                        // Otorgar 15 segundos de inmortalidad (Resistencia V = 100% de reducción de daño), regeneración, resistencia al fuego e invisibilidad
                         player.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 300, 4, false, false, true));
                         player.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 300, 2, false, false, true));
                         player.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 300, 0, false, false, true));
+                        player.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, 300, 0, false, false, true));
 
                         ServerPlayNetworking.send(player, new ModPackets.NotificationPayload(
-                                "§6¡Inmortalidad temporal (15s)! §fRecupera tus cosas y vuelve al combate.",
+                                "§6Inmortalidad temporal (15s) ¡Recupera tus cosas!",
                                 0xFFF59E0B
                         ));
                     }
@@ -290,6 +323,36 @@ public class IncursionManager {
             IncursionSession session = sessions.computeIfAbsent(m.getId(), k -> new IncursionSession(m));
             ServerLevel level = server.getLevel(server.overworld().dimension());
             if (level == null) continue;
+            session.currentLevel = level;
+
+            // Manejar cuenta regresiva de inmortalidad y desviar mobs
+            if (!session.immortalityTicks.isEmpty()) {
+                for (Iterator<Map.Entry<UUID, Integer>> it = session.immortalityTicks.entrySet().iterator(); it.hasNext(); ) {
+                    Map.Entry<UUID, Integer> entry = it.next();
+                    int rem = entry.getValue() - 1;
+                    ServerPlayer sp = server.getPlayerList().getPlayer(entry.getKey());
+                    if (sp == null || !sp.isAlive() || rem <= 0) {
+                        it.remove();
+                        if (sp != null) {
+                            sp.removeEffect(MobEffects.INVISIBILITY);
+                        }
+                        continue;
+                    }
+                    entry.setValue(rem);
+                    for (Entity mobEnt : session.activeWaveMobs) {
+                        if (mobEnt instanceof Mob mob && mob.getTarget() == sp) {
+                            mob.setTarget(null);
+                        }
+                    }
+                    if (rem % 20 == 0) {
+                        int secs = rem / 20;
+                        ServerPlayNetworking.send(sp, new ModPackets.NotificationPayload(
+                                "§6Inmortalidad temporal (" + secs + "s) ¡Recupera tus cosas!",
+                                0xFFF59E0B
+                        ));
+                    }
+                }
+            }
 
             BlockPos center = m.getTargetPos();
             if (center == null) continue;
@@ -371,7 +434,7 @@ public class IncursionManager {
                         double dx = p.getX() - startX;
                         double dy = p.getY() - startY;
                         double dz = p.getZ() - startZ;
-                        if ((dx * dx + dz * dz) <= 36.0 && Math.abs(dy) <= 6.0) { // Radio de 6 bloques
+                        if (Math.abs(dx) <= 2.0 && Math.abs(dz) <= 2.0 && Math.abs(dy) <= 2.5) { // Área 4x4 bloques
                             playersAtStart.add(p);
                         }
                     }
@@ -545,7 +608,7 @@ public class IncursionManager {
                             level.playSound(null, center.getX(), center.getY(), center.getZ(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 1.0f, 1.0f);
 
                             broadcastToRegistered(server, session, new ModPackets.NotificationPayload(
-                                    "§aHas despejado el camino, siguiente oleada en 15s",
+                                    "§aSiguiente oleada en 15s",
                                     0xFF22C55E
                             ));
                         } else {
@@ -553,11 +616,12 @@ public class IncursionManager {
                             session.state = IncursionState.ESCAPE_PHASE;
                             session.escapeGraceTicks = 40;
                             session.cooldownTicks = 240;
+                            if (session.lootingTicks <= 0) session.lootingTicks = 1200;
                             level.playSound(null, center.getX(), center.getY(), center.getZ(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.PLAYERS, 1.2f, 1.0f);
 
                             broadcastToRegistered(server, session, new ModPackets.NotificationPayload(
-                                    "§a§l¡Zona despejada! §fSaqueen los cofres y corran a la salida",
-                                    0xFF22C55E
+                                    "§6§l¡Toma el loot de los cofres y corre!",
+                                    0xFFF59E0B
                             ));
                         }
                     }
@@ -610,7 +674,7 @@ public class IncursionManager {
                     if (session.waveCooldownTicks % 20 == 0 && session.waveCooldownTicks > 0) {
                         int secs = session.waveCooldownTicks / 20;
                         broadcastToRegistered(server, session, new ModPackets.NotificationPayload(
-                                "§aHas despejado el camino, siguiente oleada en " + secs + "s",
+                                "§aSiguiente oleada en " + secs + "s",
                                 0xFF22C55E
                         ));
                     }
@@ -623,22 +687,19 @@ public class IncursionManager {
                             session.state = IncursionState.ESCAPE_PHASE;
                             session.escapeGraceTicks = 40;
                             session.cooldownTicks = 240; // 12s entre refuerzos
+                            if (session.lootingTicks <= 0) session.lootingTicks = 1200;
                             spawnWaveMobs(level, session);
 
                             level.playSound(null, center.getX(), center.getY(), center.getZ(), SoundEvents.WITHER_SPAWN, SoundSource.HOSTILE, 1.0f, 0.9f);
                             broadcastToRegistered(server, session, new ModPackets.NotificationPayload(
-                                    "§c§l¡Oleada Final! ¡Evacúen inmediatamente hacia la salida y tomen el botín!",
-                                    0xFFDC2626
+                                    "§6§l¡Toma el loot de los cofres y corre!",
+                                    0xFFF59E0B
                             ));
                         } else {
                             session.state = IncursionState.WAVE_ACTIVE;
                             spawnWaveMobs(level, session);
 
                             level.playSound(null, center.getX(), center.getY(), center.getZ(), SoundEvents.WITHER_SPAWN, SoundSource.HOSTILE, 0.8f, 1.4f);
-                            broadcastToRegistered(server, session, new ModPackets.NotificationPayload(
-                                    "§c§l¡Sigan avanzando!",
-                                    0xFFEF4444
-                            ));
                         }
                     }
                 }
@@ -660,9 +721,8 @@ public class IncursionManager {
                                 level.sendParticles(ParticleTypes.SMOKE, cp.getX() + 0.5, cp.getY() + 0.5, cp.getZ() + 0.5, 15, 0.3, 0.4, 0.3, 0.02);
 
                                 List<String> looterList = new ArrayList<>(looters);
-                                int cNum = session.chestNumbers.getOrDefault(cp, 1);
                                 String looterName = looterList.isEmpty() ? "Un superviviente" : looterList.get(looterList.size() - 1);
-                                String announcement = "§6" + looterName + " §ftomó cosas del §6cofre #" + cNum;
+                                String announcement = "§6" + looterName + " §ftomó cosas de un cofre";
 
                                 broadcastToRegistered(server, session, new ModPackets.NotificationPayload(announcement, 0xFFF59E0B));
                                 syncHud(server, session);
@@ -688,6 +748,26 @@ public class IncursionManager {
                 case ESCAPE_PHASE -> {
                     updateParticipants(server, session, playersInZone);
 
+                    // Temporizador de botín en la oleada final
+                    if (session.lootingTicks > 0) {
+                        session.lootingTicks--;
+                        if (session.lootingTicks == 0 && !session.activeChests.isEmpty()) {
+                            for (BlockPos cp : new ArrayList<>(session.activeChests)) {
+                                level.setBlockAndUpdate(cp, Blocks.AIR.defaultBlockState());
+                                level.playSound(null, cp.getX() + 0.5, cp.getY() + 0.5, cp.getZ() + 0.5, SoundEvents.GENERIC_EXPLODE, SoundSource.BLOCKS, 1.2f, 1.2f);
+                                level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, cp.getX() + 0.5, cp.getY() + 0.8, cp.getZ() + 0.5, 25, 0.3, 0.6, 0.3, 0.03);
+                                level.sendParticles(ParticleTypes.SMOKE, cp.getX() + 0.5, cp.getY() + 0.5, cp.getZ() + 0.5, 15, 0.3, 0.4, 0.3, 0.02);
+                            }
+                            session.activeChests.clear();
+                            level.playSound(null, center.getX(), center.getY(), center.getZ(), SoundEvents.GENERIC_EXPLODE, SoundSource.BLOCKS, 1.5f, 1.0f);
+                            broadcastToRegistered(server, session, new ModPackets.NotificationPayload(
+                                    "§c§l¡Se acabó el tiempo del botín! Los cofres han desaparecido.",
+                                    0xFFEF4444
+                            ));
+                            syncHud(server, session);
+                        }
+                    }
+
                     // Monitorear cofres que se sigan vaciando en el escape SOLO si un jugador los abrió
                     if (!session.activeChests.isEmpty()) {
                         for (BlockPos cp : new ArrayList<>(session.activeChests)) {
@@ -701,9 +781,8 @@ public class IncursionManager {
                                 level.sendParticles(ParticleTypes.SMOKE, cp.getX() + 0.5, cp.getY() + 0.5, cp.getZ() + 0.5, 15, 0.3, 0.4, 0.3, 0.02);
 
                                 List<String> looterList = new ArrayList<>(looters);
-                                int cNum = session.chestNumbers.getOrDefault(cp, 1);
                                 String looterName = looterList.isEmpty() ? "Un superviviente" : looterList.get(looterList.size() - 1);
-                                String announcement = "§6" + looterName + " §ftomó cosas del §6cofre #" + cNum;
+                                String announcement = "§6" + looterName + " §ftomó cosas de un cofre";
 
                                 broadcastToRegistered(server, session, new ModPackets.NotificationPayload(announcement, 0xFFF59E0B));
                                 syncHud(server, session);
@@ -768,7 +847,7 @@ public class IncursionManager {
                             double dx = player.getX() - extX;
                             double dy = player.getY() - extY;
                             double dz = player.getZ() - extZ;
-                            if ((dx * dx + dz * dz) <= 25.0 && Math.abs(dy) <= 5.0) {
+                            if (Math.abs(dx) <= 2.0 && Math.abs(dz) <= 2.0 && Math.abs(dy) <= 2.5) {
                                 atEscape++;
                             } else {
                                 escaped = false;
@@ -799,10 +878,7 @@ public class IncursionManager {
                         MissionManager.syncToAll(server);
 
                         level.playSound(null, escapePos.getX(), escapePos.getY(), escapePos.getZ(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.PLAYERS, 1.5f, 1.0f);
-                        broadcastToRegistered(server, session, new ModPackets.NotificationPayload(
-                                "§a§lHas completado la incursión, ¡recibiste una recompensa!",
-                                0xFF22C55E
-                        ));
+                        // Mensaje de completado removido a petición del usuario para evitar redundancia con la UI superior
 
                         clearHud(server, session);
                         session.cleanMobs();
@@ -889,8 +965,11 @@ public class IncursionManager {
                 if (type != null) {
                     Entity entity = type.create(level, EntitySpawnReason.EVENT);
                     if (entity != null) {
-                        entity.setPos(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
+                        double spawnY = level.getBlockState(spawnPos).isSolid() ? (spawnPos.getY() + 1.0) : spawnPos.getY();
+                        entity.setPos(spawnPos.getX() + 0.5, spawnY, spawnPos.getZ() + 0.5);
+                        entity.addTag("incursion_mob");
                         if (entity instanceof Mob mob) {
+                            mob.addTag("incursion_mob");
                             mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos), EntitySpawnReason.EVENT, null);
                             mob.setPersistenceRequired();
 
@@ -1102,28 +1181,9 @@ public class IncursionManager {
                     objPos = m.getRoutePoints().get(session.currentRouteIndex);
                     objTitle = (m.getRoutePointNames() != null && session.currentRouteIndex < m.getRoutePointNames().size()) ?
                             m.getRoutePointNames().get(session.currentRouteIndex) : ("Checkpoint #" + (session.currentRouteIndex + 1));
-                } else if (!session.activeWaveMobs.isEmpty()) {
-                    Entity nearestMob = null;
-                    double minD2 = Double.MAX_VALUE;
-                    for (Entity mob : session.activeWaveMobs) {
-                        if (mob != null && mob.isAlive() && !mob.isRemoved()) {
-                            double d2 = sp.distanceToSqr(mob);
-                            if (d2 < minD2) {
-                                minD2 = d2;
-                                nearestMob = mob;
-                            }
-                        }
-                    }
-                    if (nearestMob != null) {
-                        objPos = nearestMob.blockPosition();
-                        objTitle = "Enemigo (" + session.activeWaveMobs.size() + " restantes)";
-                    } else {
-                        objPos = m.getTargetPos();
-                        objTitle = "Oleada " + session.currentWave;
-                    }
                 } else {
                     objPos = m.getTargetPos();
-                    objTitle = session.state == IncursionState.WAVE_COOLDOWN ? "Siguiente Oleada" : ("Oleada " + session.currentWave);
+                    objTitle = "";
                 }
             }
 

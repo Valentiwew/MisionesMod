@@ -382,7 +382,7 @@ public class ModPackets {
     }
 
     // 9. SyncCraftableItemsPayload (S2C)
-    public record SyncCraftableItemsPayload(List<String> craftableItemIds) implements CustomPacketPayload {
+    public record SyncCraftableItemsPayload(List<String> craftableItemIds, List<String> smeltableItemIds) implements CustomPacketPayload {
         public static final Type<SyncCraftableItemsPayload> TYPE = new Type<>(Identifier.fromNamespaceAndPath("misionesmod", "sync_craftable_items"));
         public static final StreamCodec<FriendlyByteBuf, SyncCraftableItemsPayload> CODEC = CustomPacketPayload.codec(
                 SyncCraftableItemsPayload::write,
@@ -390,7 +390,7 @@ public class ModPackets {
         );
 
         public SyncCraftableItemsPayload(FriendlyByteBuf buf) {
-            this(readList(buf));
+            this(readList(buf), readList(buf));
         }
 
         private static List<String> readList(FriendlyByteBuf buf) {
@@ -406,6 +406,12 @@ public class ModPackets {
             buf.writeVarInt(craftableItemIds != null ? craftableItemIds.size() : 0);
             if (craftableItemIds != null) {
                 for (String s : craftableItemIds) {
+                    buf.writeUtf(s);
+                }
+            }
+            buf.writeVarInt(smeltableItemIds != null ? smeltableItemIds.size() : 0);
+            if (smeltableItemIds != null) {
+                for (String s : smeltableItemIds) {
                     buf.writeUtf(s);
                 }
             }

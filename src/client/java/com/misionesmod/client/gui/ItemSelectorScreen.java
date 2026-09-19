@@ -18,9 +18,15 @@ import java.util.Locale;
 import java.util.function.Consumer;
 
 public class ItemSelectorScreen extends Screen {
+    public enum FilterMode {
+        ALL,
+        ONLY_CRAFTABLE,
+        ONLY_SMELTABLE
+    }
+
     private final Screen parentScreen;
     private final Consumer<Item> onSelect;
-    private final boolean onlyCraftable;
+    private final FilterMode filterMode;
 
     private static final int PANEL_WIDTH = 250;
     private static final int PANEL_HEIGHT = 224;
@@ -36,13 +42,20 @@ public class ItemSelectorScreen extends Screen {
     private Button nextPageBtn;
 
     public ItemSelectorScreen(Screen parentScreen, Consumer<Item> onSelect) {
-        this(parentScreen, false, onSelect);
+        this(parentScreen, FilterMode.ALL, onSelect);
     }
 
     public ItemSelectorScreen(Screen parentScreen, boolean onlyCraftable, Consumer<Item> onSelect) {
-        super(Component.literal(onlyCraftable ? "Seleccionar Ítem Crafteable" : "Seleccionar Ítem"));
+        this(parentScreen, onlyCraftable ? FilterMode.ONLY_CRAFTABLE : FilterMode.ALL, onSelect);
+    }
+
+    public ItemSelectorScreen(Screen parentScreen, FilterMode filterMode, Consumer<Item> onSelect) {
+        super(Component.literal(
+                filterMode == FilterMode.ONLY_CRAFTABLE ? "Seleccionar Ítem Crafteable" :
+                filterMode == FilterMode.ONLY_SMELTABLE ? "Seleccionar Ítem Cocinable" : "Seleccionar Ítem"
+        ));
         this.parentScreen = parentScreen;
-        this.onlyCraftable = onlyCraftable;
+        this.filterMode = filterMode != null ? filterMode : FilterMode.ALL;
         this.onSelect = onSelect;
     }
 
@@ -53,8 +66,14 @@ public class ItemSelectorScreen extends Screen {
         int panelX = (this.width - PANEL_WIDTH) / 2;
         int panelY = (this.height - PANEL_HEIGHT) / 2;
 
+        String hint = switch (filterMode) {
+            case ONLY_CRAFTABLE -> "Buscar crafteo...";
+            case ONLY_SMELTABLE -> "Buscar ítem horneable/cocinable...";
+            default -> "Buscar ítem o bloque...";
+        };
+
         searchBox = new EditBox(this.font, panelX + 16, panelY + 28, PANEL_WIDTH - 32, 17, Component.literal("Buscar"));
-        searchBox.setHint(Component.literal(onlyCraftable ? "Buscar crafteo..." : "Buscar ítem o bloque..."));
+        searchBox.setHint(Component.literal(hint));
         searchBox.setResponder(this::updateSearchFilter);
         this.addRenderableWidget(searchBox);
 
@@ -103,8 +122,12 @@ public class ItemSelectorScreen extends Screen {
         for (Item item : BuiltInRegistries.ITEM) {
             if (item == Items.AIR) continue;
             String id = BuiltInRegistries.ITEM.getKey(item).toString().toLowerCase(Locale.ROOT);
-            if (onlyCraftable && !com.misionesmod.client.MisionesModClient.craftableItemIds.isEmpty()) {
+            if (filterMode == FilterMode.ONLY_CRAFTABLE && !com.misionesmod.client.MisionesModClient.craftableItemIds.isEmpty()) {
                 if (!com.misionesmod.client.MisionesModClient.craftableItemIds.contains(id)) {
+                    continue;
+                }
+            } else if (filterMode == FilterMode.ONLY_SMELTABLE && !com.misionesmod.client.MisionesModClient.smeltableItemIds.isEmpty()) {
+                if (!com.misionesmod.client.MisionesModClient.smeltableItemIds.contains(id)) {
                     continue;
                 }
             }
@@ -176,8 +199,12 @@ public class ItemSelectorScreen extends Screen {
 
         // Encabezado
         graphics.fill(panelX + 1, panelY + 1, panelX + PANEL_WIDTH - 1, panelY + 22, 0x551E293B);
-        graphics.fill(panelX + 1, panelY + 22, panelX + PANEL_WIDTH - 1, panelY + 23, 0xFF334155);
-        graphics.centeredText(font, Component.literal("§e📦 " + (onlyCraftable ? "ÍTEM CRAFTEABLE" : "SELECCIONAR ÍTEM")), centerX, panelY + 7, 0xFFFFFFFF);
+        String headerTitle = switch (filterMode) {
+            case ONLY_CRAFTABLE -> "ÍTEM CRAFTEABLE";
+            case ONLY_SMELTABLE -> "ÍTEM COCINABLE";
+            default -> "SELECCIONAR ÍTEM";
+        };
+        graphics.centeredText(font, Component.literal("§e📦 " + headerTitle), centerX, panelY + 7, 0xFFFFFFFF);
 
         // Rejilla de ítems
         int startGridX = panelX + (PANEL_WIDTH - (COLS * 18)) / 2;

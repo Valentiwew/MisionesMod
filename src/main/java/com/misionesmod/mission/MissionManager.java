@@ -142,6 +142,7 @@ public class MissionManager {
     }
 
     private static final Map<String, Integer> playerBaselineCraftStats = new HashMap<>();
+    private static final Map<String, Integer> playerSmeltedCounts = new HashMap<>();
 
     public static int getCraftedCount(Mission mission, ServerPlayer player) {
         if (!"CRAFTEO".equalsIgnoreCase(mission.getObjectiveType())) return 0;
@@ -161,6 +162,35 @@ public class MissionManager {
         }
     }
 
+    public static int getSmeltedCount(Mission mission, ServerPlayer player) {
+        if (!"COCINAR".equalsIgnoreCase(mission.getObjectiveType())) return 0;
+        String key = mission.getId() + "_" + player.getUUID();
+        return playerSmeltedCounts.getOrDefault(key, 0);
+    }
+
+    public static synchronized void onItemSmelted(ServerPlayer player, Item item, int count) {
+        if (player == null || item == null || count <= 0) return;
+        String itemId = BuiltInRegistries.ITEM.getKey(item).toString();
+        List<Mission> missions = getMissions();
+        boolean changed = false;
+        for (Mission m : missions) {
+            if ("COCINAR".equalsIgnoreCase(m.getObjectiveType()) && !m.isCompletedBy(player.getUUID())) {
+                if (itemId.equalsIgnoreCase(m.getRequiredItemId())) {
+                    String key = m.getId() + "_" + player.getUUID();
+                    int current = playerSmeltedCounts.getOrDefault(key, 0) + count;
+                    playerSmeltedCounts.put(key, current);
+                    changed = true;
+                    if (current >= m.getRequiredCount()) {
+                        completeMission(m.getId(), player);
+                    }
+                }
+            }
+        }
+        if (changed) {
+            syncToPlayer(player);
+        }
+    }
+
     public static synchronized boolean completeMission(String id, ServerPlayer player) {
         Mission mission = getMission(id);
         if (mission != null && !mission.isCompletedBy(player.getUUID())) {
@@ -169,6 +199,11 @@ public class MissionManager {
             if ("CRAFTEO".equalsIgnoreCase(objType)) {
                 int crafted = getCraftedCount(mission, player);
                 if (crafted < mission.getRequiredCount()) {
+                    return false;
+                }
+            } else if ("COCINAR".equalsIgnoreCase(objType)) {
+                int smelted = getSmeltedCount(mission, player);
+                if (smelted < mission.getRequiredCount()) {
                     return false;
                 }
             } else if ("OBTENCION".equalsIgnoreCase(objType)) {
@@ -264,6 +299,12 @@ public class MissionManager {
                         completeMission(m.getId(), player);
                         break;
                     }
+                } else if ("COCINAR".equalsIgnoreCase(objType)) {
+                    int smelted = getSmeltedCount(m, player);
+                    if (smelted >= m.getRequiredCount()) {
+                        completeMission(m.getId(), player);
+                        break;
+                    }
                 } else if ("OBTENCION".equalsIgnoreCase(objType)) {
                     String reqId = m.getRequiredItemId();
                     int reqCount = m.getRequiredCount();
@@ -295,11 +336,20 @@ public class MissionManager {
         List<Mission> currentMissions = getMissions();
         List<Mission> personalized = new ArrayList<>();
         for (Mission m : currentMissions) {
-            personalized.add(m.copyForPlayer(player.getUUID()));
+            Mission copy = m.copyForPlayer(player.getUUID());
+            if ("CRAFTEO".equalsIgnoreCase(m.getObjectiveType())) {
+                copy.setCurrentProgress(getCraftedCount(m, player));
+            } else if ("COCINAR".equalsIgnoreCase(m.getObjectiveType())) {
+                copy.setCurrentProgress(getSmeltedCount(m, player));
+            }
+            personalized.add(copy);
         }
         ServerPlayNetworking.send(player, new ModPackets.SyncMissionsPayload(personalized));
         if (player.level().getServer() != null) {
-            ServerPlayNetworking.send(player, new ModPackets.SyncCraftableItemsPayload(getCraftableItemIds(player.level().getServer())));
+            ServerPlayNetworking.send(player, new ModPackets.SyncCraftableItemsPayload(
+                    getCraftableItemIds(player.level().getServer()),
+                    getSmeltableItemIds(player.level().getServer())
+            ));
         }
     }
 
@@ -367,6 +417,28 @@ public class MissionManager {
             Set<String> set = new HashSet<>();
             for (RecipeHolder<?> holder : server.getRecipeManager().getRecipes()) {
                 if (holder.value().getType() == RecipeType.CRAFTING) {
+                    for (RecipeDisplay display : holder.value().display()) {
+                        ItemStack res = display.result().resolveForFirstStack(context);
+                        if (!res.isEmpty() && res.getItem() != Items.AIR) {
+                            set.add(BuiltInRegistries.ITEM.getKey(res.getItem()).toString());
+                        }
+                    }
+                }
+            }
+            list.addAll(set);
+        } catch (Exception ignored) {}
+        return list;
+    }
+
+    public static List<String> getSmeltableItemIds(MinecraftServer server) {
+        List<String> list = new ArrayList<>();
+        if (server == null) return list;
+        try {
+            ContextMap context = SlotDisplayContext.fromLevel(server.overworld());
+            Set<String> set = new HashSet<>();
+            for (RecipeHolder<?> holder : server.getRecipeManager().getRecipes()) {
+                RecipeType<?> type = holder.value().getType();
+                if (type == RecipeType.SMELTING || type == RecipeType.BLASTING || type == RecipeType.SMOKING || type == RecipeType.CAMPFIRE_COOKING) {
                     for (RecipeDisplay display : holder.value().display()) {
                         ItemStack res = display.result().resolveForFirstStack(context);
                         if (!res.isEmpty() && res.getItem() != Items.AIR) {

@@ -97,6 +97,7 @@ public class MisionesModClient implements ClientModInitializer {
     public static final List<Mission> clientMissions = new ArrayList<>();
     public static final java.util.Set<String> notifiedItemMissions = new java.util.HashSet<>();
     public static final java.util.Set<String> craftableItemIds = new java.util.HashSet<>();
+    public static final java.util.Set<String> smeltableItemIds = new java.util.HashSet<>();
 
     private static net.minecraft.network.chat.Component currentOverlayMessage = null;
     private static int overlayMessageTicks = 0;
@@ -151,6 +152,8 @@ public class MisionesModClient implements ClientModInitializer {
             context.client().execute(() -> {
                 craftableItemIds.clear();
                 craftableItemIds.addAll(payload.craftableItemIds());
+                smeltableItemIds.clear();
+                smeltableItemIds.addAll(payload.smeltableItemIds());
             });
         });
 
@@ -187,6 +190,7 @@ public class MisionesModClient implements ClientModInitializer {
             clientMissions.clear();
             notifiedItemMissions.clear();
             craftableItemIds.clear();
+            smeltableItemIds.clear();
             overlayMessageTicks = 0;
             currentOverlayMessage = null;
             WaypointHudRenderer.clear();
@@ -195,6 +199,7 @@ public class MisionesModClient implements ClientModInitializer {
             clientMissions.clear();
             notifiedItemMissions.clear();
             craftableItemIds.clear();
+            smeltableItemIds.clear();
             overlayMessageTicks = 0;
             currentOverlayMessage = null;
             WaypointHudRenderer.clear();

@@ -1,0 +1,11 @@
+{
+  "required": true,
+  "package": "com.misionesmod.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "FurnaceResultSlotMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

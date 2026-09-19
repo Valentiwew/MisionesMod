@@ -387,7 +387,7 @@ public class DropManager {
 
         // 1. Enviar notificación sobre la hotbar con coordenadas (sin chat ni palabra AirDrop)
         ModPackets.NotificationPayload dropNotif = new ModPackets.NotificationPayload(
-                "§6Un Drop caerá en §eX: " + landPos.getX() + ", Z: " + landPos.getZ(),
+                "§6¡Un drop caerá pronto!",
                 0xFFF59E0B
         );
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {

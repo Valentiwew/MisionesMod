@@ -414,15 +414,8 @@ public class WaypointHudRenderer implements HudElement {
             }
         }
 
-        // 2B. Renderizar Waypoints en la parte superior (Solo Drops o Setup)
+        // 2B. Renderizar Waypoints en la parte superior (Solo Setup en el Mundo)
         List<Waypoint> activeList = new ArrayList<>();
-        synchronized (WaypointHudRenderer.class) {
-            for (Waypoint wp : waypoints) {
-                if (wp.isDrop) {
-                    activeList.add(wp);
-                }
-            }
-        }
 
         if (com.misionesmod.client.gui.IncursionSetupSession.active) {
             if (com.misionesmod.client.gui.IncursionSetupSession.extractionPos != null) {
@@ -687,18 +680,25 @@ public class WaypointHudRenderer implements HudElement {
                         lineColors.add(0xFFCBD5E1);
                     }
                 }
-            } else if ("OBTENCION".equalsIgnoreCase(obj) || "CRAFTEO".equalsIgnoreCase(obj)) {
+            } else if ("OBTENCION".equalsIgnoreCase(obj) || "CRAFTEO".equalsIgnoreCase(obj) || "COCINAR".equalsIgnoreCase(obj)) {
                 int found = 0;
                 String reqId = m.getRequiredItemId();
                 int req = m.getRequiredCount();
-                for (int s = 0; s < player.getInventory().getContainerSize(); s++) {
-                    ItemStack st = player.getInventory().getItem(s);
-                    if (!st.isEmpty() && BuiltInRegistries.ITEM.getKey(st.getItem()).toString().equalsIgnoreCase(reqId)) {
-                        found += st.getCount();
+                if ("OBTENCION".equalsIgnoreCase(obj)) {
+                    for (int s = 0; s < player.getInventory().getContainerSize(); s++) {
+                        ItemStack st = player.getInventory().getItem(s);
+                        if (!st.isEmpty() && BuiltInRegistries.ITEM.getKey(st.getItem()).toString().equalsIgnoreCase(reqId)) {
+                            found += st.getCount();
+                        }
                     }
+                } else {
+                    found = m.getCurrentProgress();
                 }
                 String color = found >= req ? "§a" : "§e";
-                lines.add("  §7" + ("CRAFTEO".equalsIgnoreCase(obj) ? "Craftear: " : "Obtener: ") + color + found + "/" + req + " " + m.getItemDisplayName());
+                String verb = "Obtener: ";
+                if ("CRAFTEO".equalsIgnoreCase(obj)) verb = "Craftear: ";
+                else if ("COCINAR".equalsIgnoreCase(obj)) verb = "Cocinar: ";
+                lines.add("  §7" + verb + color + found + "/" + req + " " + m.getItemDisplayName());
                 lineColors.add(0xFFE2E8F0);
 
                 if (reqId != null && !reqId.isBlank()) {

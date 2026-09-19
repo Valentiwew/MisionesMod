@@ -30,13 +30,13 @@ public class CreateMissionScreen extends Screen {
 
     private EditBox titleBox;
 
-    private static final String[] OBJECTIVE_TYPES = {"INCURSION", "OBTENCION", "CRAFTEO"};
-    private static final String[] OBJECTIVE_NAMES = {"Incursión (Edificio)", "Obtener Ítem", "Crafteo de Ítem"};
+    private static final String[] OBJECTIVE_TYPES = {"INCURSION", "OBTENCION", "CRAFTEO", "COCINAR"};
+    private static final String[] OBJECTIVE_NAMES = {"Incursión (Edificio)", "Obtener Ítem", "Crafteo de Ítem", "Cocinar Ítem"};
     private int selectedObjectiveIndex = 0; // "INCURSION" por defecto
     private Button objectiveButton;
 
-    // Campos de crafteo / obtención
-    private String selectedItemId = "minecraft:iron_ingot";
+    // Campos de crafteo / obtención / cocinado
+    private String selectedItemId = "";
     private Button selectItemButton;
     private EditBox reqCountBox;
 
@@ -224,7 +224,7 @@ public class CreateMissionScreen extends Screen {
     }
 
     private String getItemDisplayName(String itemId) {
-        if (itemId == null || itemId.isBlank()) return "Ítem";
+        if (itemId == null || itemId.isBlank()) return "Seleccione ítem";
         try {
             Identifier id = Identifier.parse(itemId);
             Item item = BuiltInRegistries.ITEM.getValue(id);
@@ -264,14 +264,20 @@ public class CreateMissionScreen extends Screen {
         ).bounds(fieldX, panelY + 74, fieldWidth, 19).build();
         this.addRenderableWidget(objectiveButton);
 
-        // 4B. Selector visual de Ítem y Cantidad (para Obtención y Crafteo)
+        // 4B. Selector visual de Ítem y Cantidad (para Obtención, Crafteo y Cocinado)
         selectItemButton = Button.builder(
                 Component.literal("§e📦 " + getItemDisplayName(selectedItemId)),
                 b -> {
                     saveInputValues();
                     if (this.minecraft != null) {
-                        boolean isCraft = "CRAFTEO".equalsIgnoreCase(OBJECTIVE_TYPES[selectedObjectiveIndex]);
-                        this.minecraft.gui.setScreen(new ItemSelectorScreen(this, isCraft, item -> {
+                        String obj = OBJECTIVE_TYPES[selectedObjectiveIndex];
+                        ItemSelectorScreen.FilterMode filter = ItemSelectorScreen.FilterMode.ALL;
+                        if ("CRAFTEO".equalsIgnoreCase(obj)) {
+                            filter = ItemSelectorScreen.FilterMode.ONLY_CRAFTABLE;
+                        } else if ("COCINAR".equalsIgnoreCase(obj)) {
+                            filter = ItemSelectorScreen.FilterMode.ONLY_SMELTABLE;
+                        }
+                        this.minecraft.gui.setScreen(new ItemSelectorScreen(this, filter, item -> {
                             this.selectedItemId = BuiltInRegistries.ITEM.getKey(item).toString();
                             if (selectItemButton != null) {
                                 selectItemButton.setMessage(Component.literal("§e📦 " + getItemDisplayName(selectedItemId)));
@@ -383,7 +389,7 @@ public class CreateMissionScreen extends Screen {
 
     private void updateObjectiveWidgets() {
         String obj = OBJECTIVE_TYPES[selectedObjectiveIndex];
-        boolean isItemRelated = "OBTENCION".equalsIgnoreCase(obj) || "CRAFTEO".equalsIgnoreCase(obj);
+        boolean isItemRelated = "OBTENCION".equalsIgnoreCase(obj) || "CRAFTEO".equalsIgnoreCase(obj) || "COCINAR".equalsIgnoreCase(obj);
         boolean isIncursion = "INCURSION".equalsIgnoreCase(obj);
 
         int panelY = (this.height - PANEL_HEIGHT) / 2;
@@ -476,6 +482,7 @@ public class CreateMissionScreen extends Screen {
         }
 
         String missionId = existingMission != null ? existingMission.getId() : "";
+        String reqItem = (selectedItemId != null && !selectedItemId.isBlank()) ? selectedItemId : "minecraft:iron_ingot";
         ClientPlayNetworking.send(new ModPackets.CreateMissionPayload(
                 missionId,
                 title,
@@ -484,7 +491,7 @@ public class CreateMissionScreen extends Screen {
                 tier,
                 reward,
                 objType,
-                selectedItemId,
+                reqItem,
                 reqCount,
                 itemIds,
                 counts,
@@ -532,8 +539,11 @@ public class CreateMissionScreen extends Screen {
         } else if ("CRAFTEO".equalsIgnoreCase(obj)) {
             graphics.text(font, Component.literal("§7Ítem a Craftear:"), fieldX, panelY + 101, 0xFFCCCCCC);
             graphics.text(font, Component.literal("§7Cantidad:"), fieldX + 172, panelY + 101, 0xFFCCCCCC);
+        } else if ("COCINAR".equalsIgnoreCase(obj)) {
+            graphics.text(font, Component.literal("§7Ítem a Cocinar:"), fieldX, panelY + 101, 0xFFCCCCCC);
+            graphics.text(font, Component.literal("§7Cantidad:"), fieldX + 172, panelY + 101, 0xFFCCCCCC);
         } else if ("INCURSION".equalsIgnoreCase(obj)) {
-            graphics.centeredText(font, Component.literal("§6§lIncursión / Recorrido Táctico"), centerX, panelY + 98, 0xFFF59E0B);
+            graphics.centeredText(font, Component.literal("§6§lIncursión"), centerX, panelY + 98, 0xFFF59E0B);
             int routes = incursionRoutePoints.size();
             int chests = incursionChestPositions.size() + incursionCustomChestPositions.size();
             int spawns = incursionSpawns.size();

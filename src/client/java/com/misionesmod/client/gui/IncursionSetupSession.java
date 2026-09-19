@@ -102,6 +102,8 @@ public class IncursionSetupSession {
                 }
             }
         }
+        active = true;
+        setStatus("Modo En el Mundo activado. Usa las teclas de arriba ([M] para terminar)", 0xFF22C55E);
     }
 
     public static String statusMessage = "Muévete por la zona para fijar los puntos ([M] para terminar)";

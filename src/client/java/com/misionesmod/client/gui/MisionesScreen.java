@@ -537,14 +537,16 @@ public class MisionesScreen extends Screen {
                 }
 
                 nextSectionY = craftY + (3 * slotSize) + 5;
-            } else if ("OBTENCION".equalsIgnoreCase(objType)) {
+            } else if ("OBTENCION".equalsIgnoreCase(objType) || "COCINAR".equalsIgnoreCase(objType)) {
                 int req = current.getRequiredCount();
                 String itemName = current.getItemDisplayName();
+                boolean isCook = "COCINAR".equalsIgnoreCase(objType);
+                String actionVerb = isCook ? "Cocinar " : "Obtener ";
                 Component objComp;
                 if (isCompleted) {
-                    objComp = Component.literal("§7Objetivo: Obtener " + req + " de " + itemName);
+                    objComp = Component.literal("§7Objetivo: " + actionVerb + req + " de " + itemName);
                 } else {
-                    objComp = Component.literal("§bObjetivo: §fObtener §e" + req + " de " + itemName);
+                    objComp = Component.literal("§bObjetivo: §f" + actionVerb + "§e" + req + " de " + itemName);
                 }
                 graphics.textWithWordWrap(font, objComp, rightX, objY, rightWidth - 6, isCompleted ? 0xFF888888 : 0xFFFFFFFF);
                 int objLines = font.split(objComp, rightWidth - 6).size();
@@ -553,7 +555,9 @@ public class MisionesScreen extends Screen {
                 int itemBoxY;
                 if (!isCompleted) {
                     int found = 0;
-                    if (player != null) {
+                    if (isCook) {
+                        found = current.getCurrentProgress();
+                    } else if (player != null) {
                         String reqId = current.getRequiredItemId();
                         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
                             ItemStack s = player.getInventory().getItem(i);

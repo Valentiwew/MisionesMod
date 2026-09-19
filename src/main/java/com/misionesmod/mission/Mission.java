@@ -17,6 +17,7 @@ public class Mission {
     private String requiredItemId = "minecraft:iron_ingot";
     private int requiredCount = 1;
     private transient boolean targetReached = false;
+    private int currentProgress = 0;
 
     public Mission() {}
 
@@ -103,6 +104,7 @@ public class Mission {
         copy.setRoutePointNames(new java.util.ArrayList<>(routePointNames));
         copy.setCustomChestPositions(new java.util.ArrayList<>(customChestPositions));
         copy.setCustomChestLootPack(new java.util.ArrayList<>(customChestLootPack));
+        copy.setCurrentProgress(currentProgress);
         return copy;
     }
 
@@ -114,6 +116,9 @@ public class Mission {
 
     public int getRequiredCount() { return Math.max(1, requiredCount); }
     public void setRequiredCount(int requiredCount) { this.requiredCount = Math.max(1, requiredCount); }
+
+    public int getCurrentProgress() { return currentProgress; }
+    public void setCurrentProgress(int currentProgress) { this.currentProgress = currentProgress; }
 
     public boolean isTargetReached() { return targetReached; }
     public void setTargetReached(boolean targetReached) { this.targetReached = targetReached; }
@@ -368,6 +373,8 @@ public class Mission {
         for (String s : customChestLootPack) {
             buf.writeUtf(s != null ? s : "");
         }
+
+        buf.writeVarInt(currentProgress);
     }
 
     public static Mission readFromBuf(FriendlyByteBuf buf) {
@@ -478,6 +485,8 @@ public class Mission {
             customChestPacks.add(buf.readUtf());
         }
         mission.setCustomChestLootPack(customChestPacks);
+
+        mission.setCurrentProgress(buf.readVarInt());
 
         return mission;
     }

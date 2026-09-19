@@ -25,6 +25,7 @@ Permite disenar y ejecutar incursiones tacticas completas con seguimiento en viv
 - **Incursion (Edificio / Estructura):** Progresion por oleadas, recorrido de checkpoints, saqueo de cofres con botin personalizado y huida a la salida.
 - **Obtencion de Item:** Recoleccion de cantidades especificas de materiales o recursos para su entrega y validacion automatica.
 - **Crafteo de Item:** Fabricacion obligatoria en mesa de trabajo o cuadricula de inventario. Utiliza la estadistica oficial de fabricacion del jugador (`Stats.ITEM_CRAFTED`), evitando que se complete la mision simplemente recogiendo items arrojados al suelo.
+- **Cocinar Item:** Horneado y fundicion en cualquier tipo de horno (horno convencional, ahumadero o alto horno). Valida de forma segura cuando el jugador retira los objetos cocinados del slot de resultado del horno.
 
 ### 3. Suministros Aereos (Drops)
 - Cajas de suministros que descienden desde el cielo con bengalas de humo y senalizadores.
@@ -38,7 +39,7 @@ Permite disenar y ejecutar incursiones tacticas completas con seguimiento en viv
 
 ### 5. Interfaz Visual (HUD) y Brujula Direccional
 - **Brujula Dinamica:** Flechas direccionales contextuales (arriba, abajo, izquierda, derecha) y distancia en metros hacia el objetivo actual (punto de inicio, checkpoints, salida o suministros aereos).
-- **Iconos de Items:** En misiones de crafteo y obtencion, el HUD proyecta el icono del item requerido junto al progreso numerico.
+- **Iconos de Items:** En misiones de crafteo, cocinado y obtencion, el HUD proyecta el icono del item requerido junto al progreso numerico.
 - **Menu de Ajustes de HUD:** Accesible para activar/desactivar el widget en pantalla y seleccionar la esquina deseada (Superior Izquierda, Superior Derecha, Inferior Izquierda, Inferior Derecha).
 
 ---

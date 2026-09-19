@@ -17,6 +17,9 @@
 			"com.misionesmod.client.MisionesModClient"
 		]
 	},
+	"mixins": [
+		"misionesmod.mixins.json"
+	],
 	"depends": {
 		"fabricloader": ">=0.19.5",
 		"minecraft": "${mc_version}",

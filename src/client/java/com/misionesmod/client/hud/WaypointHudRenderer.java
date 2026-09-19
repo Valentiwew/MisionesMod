@@ -111,6 +111,10 @@ public class WaypointHudRenderer implements HudElement {
         incursionStatus.chestsCount = chestsCount;
         incursionStatus.currentObjectivePos = currentObjectivePos;
         incursionStatus.currentObjectiveTitle = currentObjectiveTitle != null ? currentObjectiveTitle : "";
+
+        if (active && (remainingEnemies > 0 || isEscapePhase)) {
+            activeNotifications.removeIf(an -> an.text.contains("Siguiente oleada en") || an.text.contains("Has despejado el camino"));
+        }
     }
 
     public static class MissionAnimState {
@@ -135,10 +139,10 @@ public class WaypointHudRenderer implements HudElement {
         }
 
         boolean isCountdown = text.contains("misión inicia en") || text.contains("reunidos, la misión inicia");
-        if (text.contains("Despejen a los enemigos")) {
+        if (text.contains("Despejen a los enemigos") || text.contains("Incursión iniciada")) {
             activeNotifications.removeIf(an -> an.text.contains("misión inicia en") || an.text.contains("reunidos, la misión inicia"));
         }
-        if (text.contains("Sigan avanzando") || text.contains("Oleada Final") || text.contains("Toma el loot")) {
+        if (text.contains("Sigan avanzando") || text.contains("Oleada Final") || text.contains("Toma el loot") || text.contains("Despejen") || text.contains("Oleada")) {
             activeNotifications.removeIf(an -> an.text.contains("Siguiente oleada en") || an.text.contains("Has despejado el camino"));
         }
         boolean isWaveCooldown = text.contains("Siguiente oleada en") || text.contains("Has despejado el camino, siguiente oleada en");
@@ -149,6 +153,13 @@ public class WaypointHudRenderer implements HudElement {
         boolean isRoute = text.contains("de ruta añadido");
         boolean isWaiting = text.contains("Esperando a los jugadores");
         boolean isLooting = text.contains("Fase de Botín") || text.contains("saqueo restante");
+
+        long dur = 3200L;
+        if (isImmortality) {
+            dur = 1600L;
+        } else if (isWaveCooldown || isCountdown) {
+            dur = 1200L; // Desaparece rápido en 1.2s en vez de demorarse demasiado
+        }
 
         for (ActiveNotification an : activeNotifications) {
             boolean match = false;
@@ -168,7 +179,7 @@ public class WaypointHudRenderer implements HudElement {
                 an.text = text;
                 an.borderColor = borderColor;
                 an.startTime = now;
-                an.duration = isImmortality ? 1600L : 4200L;
+                an.duration = dur;
                 return;
             }
         }
@@ -178,8 +189,7 @@ public class WaypointHudRenderer implements HudElement {
             activeNotifications.remove(0);
         }
 
-        // Duración cómoda de 4.2 segundos (o 1.6s si es temporizador de inmortalidad)
-        activeNotifications.add(new ActiveNotification(text, borderColor, isImmortality ? 1600L : 4200L));
+        activeNotifications.add(new ActiveNotification(text, borderColor, dur));
     }
 
     public static synchronized void clear() {

@@ -91,6 +91,9 @@ public class IncursionManager {
             registeredParticipants.clear();
             aliveParticipants.clear();
             fallenParticipants.clear();
+            if (currentLevel != null) {
+                destroyRemainingChests(currentLevel);
+            }
             activeChests.clear();
             chestLooters.clear();
             chestNumbers.clear();
@@ -98,6 +101,18 @@ public class IncursionManager {
             playerPlacedBlocks.clear();
             immortalityTicks.clear();
             cleanMobs();
+        }
+
+        public void destroyRemainingChests(ServerLevel level) {
+            if (!activeChests.isEmpty() && level != null) {
+                for (BlockPos cp : new ArrayList<>(activeChests)) {
+                    level.setBlockAndUpdate(cp, Blocks.AIR.defaultBlockState());
+                    level.playSound(null, cp.getX() + 0.5, cp.getY() + 0.5, cp.getZ() + 0.5, SoundEvents.GENERIC_EXPLODE, SoundSource.BLOCKS, 1.2f, 1.2f);
+                    level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, cp.getX() + 0.5, cp.getY() + 0.8, cp.getZ() + 0.5, 25, 0.3, 0.6, 0.3, 0.03);
+                    level.sendParticles(ParticleTypes.SMOKE, cp.getX() + 0.5, cp.getY() + 0.5, cp.getZ() + 0.5, 15, 0.3, 0.4, 0.3, 0.02);
+                }
+                activeChests.clear();
+            }
         }
 
         public void cleanMobs() {
@@ -639,7 +654,7 @@ public class IncursionManager {
                                     level.sendParticles(ParticleTypes.EXPLOSION, gp.getX() + 0.5, gp.getY() + 0.5, gp.getZ() + 0.5, 4, 0.3, 0.3, 0.3, 0.05);
                                 }
                                 broadcastToRegistered(server, session, new ModPackets.NotificationPayload(
-                                        "§6§l¡La puerta final se ha abierto! ¡Avancen a la zona final!",
+                                        "§6§l¡La puerta final se ha abierto!",
                                         0xFFF59E0B
                                 ));
                             }
@@ -647,8 +662,8 @@ public class IncursionManager {
                             level.playSound(null, center.getX(), center.getY(), center.getZ(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.PLAYERS, 1.2f, 1.0f);
 
                             broadcastToRegistered(server, session, new ModPackets.NotificationPayload(
-                                    "§6§l¡Toma el loot de los cofres y corre!",
-                                    0xFFF59E0B
+                                    "§b§l¡Toma el loot de los cofres y corre!",
+                                    0xFF38BDF8
                             ));
                         }
                     }
@@ -725,15 +740,15 @@ public class IncursionManager {
                                     level.sendParticles(ParticleTypes.EXPLOSION, gp.getX() + 0.5, gp.getY() + 0.5, gp.getZ() + 0.5, 4, 0.3, 0.3, 0.3, 0.05);
                                 }
                                 broadcastToRegistered(server, session, new ModPackets.NotificationPayload(
-                                        "§6§l¡La puerta final se ha abierto! ¡Avancen a la zona final!",
+                                        "§6§l¡La puerta final se ha abierto!",
                                         0xFFF59E0B
                                 ));
                             }
 
                             level.playSound(null, center.getX(), center.getY(), center.getZ(), SoundEvents.WITHER_SPAWN, SoundSource.HOSTILE, 1.0f, 0.9f);
                             broadcastToRegistered(server, session, new ModPackets.NotificationPayload(
-                                    "§6§l¡Toma el loot de los cofres y corre!",
-                                    0xFFF59E0B
+                                    "§b§l¡Toma el loot de los cofres y corre!",
+                                    0xFF38BDF8
                             ));
                         } else {
                             session.state = IncursionState.WAVE_ACTIVE;
@@ -848,6 +863,7 @@ public class IncursionManager {
                         }
                     }
                     if (!anyConnected) {
+                        session.destroyRemainingChests(level);
                         session.cleanMobs();
                         clearHud(server, session);
                         session.state = IncursionState.COMPLETED;
@@ -905,6 +921,9 @@ public class IncursionManager {
                     }
 
                     if (escaped) {
+                        // 1. Destruir cofres restantes con loot si los jugadores no alcanzaron a lotear a tiempo
+                        session.destroyRemainingChests(level);
+
                         // ¡VICTORIA! Marcar como completada y otorgar recompensa
                         for (UUID uuid : session.registeredParticipants) {
                             ServerPlayer player = server.getPlayerList().getPlayer(uuid);
@@ -918,10 +937,6 @@ public class IncursionManager {
                         MissionManager.syncToAll(server);
 
                         level.playSound(null, escapePos.getX(), escapePos.getY(), escapePos.getZ(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.PLAYERS, 1.5f, 1.0f);
-                        broadcastToRegistered(server, session, new ModPackets.NotificationPayload(
-                                "§a§l¡Incursión completada con éxito!",
-                                0xFF22C55E
-                        ));
 
                         clearHud(server, session);
                         session.cleanMobs();

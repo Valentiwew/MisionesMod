@@ -59,6 +59,10 @@ public class MisionesMod implements ModInitializer {
                         existing.setBuildingChestLootIds(payload.chestLootIds());
                         existing.setBuildingChestLootCounts(payload.chestLootCounts());
                         existing.setChestPoints(payload.chestPoints());
+                        existing.setRoutePoints(payload.routePoints());
+                        existing.setRoutePointNames(payload.routePointNames());
+                        existing.setCustomChestPositions(payload.customChestPositions());
+                        existing.setCustomChestLootPack(payload.customChestLootPack());
                         MissionManager.save();
                         MissionManager.syncToAll(context.server());
                         player.sendSystemMessage(Component.literal("§aMisión Modificada."));
@@ -87,6 +91,10 @@ public class MisionesMod implements ModInitializer {
                         mission.setBuildingChestLootIds(payload.chestLootIds());
                         mission.setBuildingChestLootCounts(payload.chestLootCounts());
                         mission.setChestPoints(payload.chestPoints());
+                        mission.setRoutePoints(payload.routePoints());
+                        mission.setRoutePointNames(payload.routePointNames());
+                        mission.setCustomChestPositions(payload.customChestPositions());
+                        mission.setCustomChestLootPack(payload.customChestLootPack());
                         MissionManager.addMission(mission, context.server());
                     }
                 });
@@ -170,6 +178,35 @@ public class MisionesMod implements ModInitializer {
             com.misionesmod.incursion.IncursionManager.clear();
         });
 
+        // 5.5. Control y bloqueo de cofres en incursiones
+        net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
+            if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer) {
+                net.minecraft.core.BlockPos pos = hitResult.getBlockPos();
+                if (com.misionesmod.incursion.IncursionManager.isChestLocked(level, pos, serverPlayer)) {
+                    ServerPlayNetworking.send(serverPlayer, new ModPackets.NotificationPayload(
+                            "§c¡Los cofres están bloqueados! Despeja las oleadas primero.",
+                            0xFFEF4444
+                    ));
+                    return net.minecraft.world.InteractionResult.FAIL;
+                }
+                com.misionesmod.incursion.IncursionManager.onChestOpened(level, pos, serverPlayer);
+            }
+            return net.minecraft.world.InteractionResult.PASS;
+        });
+
+        net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.BEFORE.register((level, player, pos, state, blockEntity) -> {
+            if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer) {
+                if (com.misionesmod.incursion.IncursionManager.isChestLocked(level, pos, serverPlayer)) {
+                    ServerPlayNetworking.send(serverPlayer, new ModPackets.NotificationPayload(
+                            "§c¡Los cofres están bloqueados! Despeja las oleadas primero.",
+                            0xFFEF4444
+                    ));
+                    return false;
+                }
+            }
+            return true;
+        });
+
         // 6. Registrar comando /drop
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             DropCommand.register(dispatcher);
@@ -180,6 +217,48 @@ public class MisionesMod implements ModInitializer {
             DropManager.tickDrops(server);
             MissionManager.tickMissions(server);
             com.misionesmod.incursion.IncursionManager.tick(server);
+        });
+
+        // 8. Protección de cofres de misión contra rotura y saqueo anticipado
+        net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, blockEntity) -> {
+            if (state.getBlock() instanceof net.minecraft.world.level.block.ChestBlock) {
+                for (Mission m : MissionManager.getMissions()) {
+                    if ("INCURSION".equalsIgnoreCase(m.getObjectiveType()) && !m.isCompleted()) {
+                        boolean isMissionChest = (m.getChestPoints() != null && m.getChestPoints().contains(pos))
+                                || (m.getCustomChestPositions() != null && m.getCustomChestPositions().contains(pos));
+                        if (isMissionChest) {
+                            if (!player.isCreative()) {
+                                player.sendSystemMessage(Component.literal("§c✕ Este cofre está protegido por una misión y no puede destruirse."));
+                                return false; // Cancela la rotura del bloque
+                            }
+                        }
+                    }
+                }
+            }
+            return true;
+        });
+
+        net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
+            if (!world.isClientSide()) {
+                BlockPos pos = hitResult.getBlockPos();
+                if (world.getBlockState(pos).getBlock() instanceof net.minecraft.world.level.block.ChestBlock) {
+                    for (Mission m : MissionManager.getMissions()) {
+                        if ("INCURSION".equalsIgnoreCase(m.getObjectiveType()) && !m.isCompleted()) {
+                            boolean isMissionChest = (m.getChestPoints() != null && m.getChestPoints().contains(pos))
+                                    || (m.getCustomChestPositions() != null && m.getCustomChestPositions().contains(pos));
+                            if (isMissionChest) {
+                                if (!com.misionesmod.incursion.IncursionManager.isSessionActive(m.getId())) {
+                                    if (!player.isCreative()) {
+                                        player.sendSystemMessage(Component.literal("§c✕ Este cofre está sellado hasta que inicie la misión."));
+                                        return net.minecraft.world.InteractionResult.FAIL;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return net.minecraft.world.InteractionResult.PASS;
         });
 
         LOGGER.info("MisionesMod inicializado con éxito.");

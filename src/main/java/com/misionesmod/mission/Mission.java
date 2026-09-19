@@ -99,6 +99,10 @@ public class Mission {
         copy.setBuildingChestLootIds(new java.util.ArrayList<>(buildingChestLootIds));
         copy.setBuildingChestLootCounts(new java.util.ArrayList<>(buildingChestLootCounts));
         copy.setChestPoints(new java.util.ArrayList<>(chestPoints));
+        copy.setRoutePoints(new java.util.ArrayList<>(routePoints));
+        copy.setRoutePointNames(new java.util.ArrayList<>(routePointNames));
+        copy.setCustomChestPositions(new java.util.ArrayList<>(customChestPositions));
+        copy.setCustomChestLootPack(new java.util.ArrayList<>(customChestLootPack));
         return copy;
     }
 
@@ -152,6 +156,110 @@ public class Mission {
 
     public java.util.List<Integer> getBuildingChestLootCounts() { return buildingChestLootCounts; }
     public void setBuildingChestLootCounts(java.util.List<Integer> list) { this.buildingChestLootCounts = list != null ? list : new java.util.ArrayList<>(); }
+
+    private java.util.List<BlockPos> routePoints = new java.util.ArrayList<>();
+    private java.util.List<String> routePointNames = new java.util.ArrayList<>();
+    private java.util.List<BlockPos> customChestPositions = new java.util.ArrayList<>();
+    private java.util.List<String> customChestLootPack = new java.util.ArrayList<>();
+
+    public java.util.List<BlockPos> getRoutePoints() { return routePoints; }
+    public void setRoutePoints(java.util.List<BlockPos> list) { this.routePoints = list != null ? list : new java.util.ArrayList<>(); }
+
+    public java.util.List<String> getRoutePointNames() { return routePointNames; }
+    public void setRoutePointNames(java.util.List<String> list) { this.routePointNames = list != null ? list : new java.util.ArrayList<>(); }
+
+    public java.util.List<BlockPos> getCustomChestPositions() { return customChestPositions; }
+    public void setCustomChestPositions(java.util.List<BlockPos> list) { this.customChestPositions = list != null ? list : new java.util.ArrayList<>(); }
+
+    public java.util.List<String> getCustomChestLootPack() { return customChestLootPack; }
+    public void setCustomChestLootPack(java.util.List<String> list) { this.customChestLootPack = list != null ? list : new java.util.ArrayList<>(); }
+
+    public java.util.List<net.minecraft.world.item.ItemStack> getLootForChest(BlockPos chestPos) {
+        if (chestPos != null) {
+            for (int i = 0; i < customChestPositions.size(); i++) {
+                if (chestPos.equals(customChestPositions.get(i))) {
+                    if (i < customChestLootPack.size()) {
+                        java.util.List<net.minecraft.world.item.ItemStack> custom = parseLootPack(customChestLootPack.get(i));
+                        boolean hasAny = false;
+                        for (net.minecraft.world.item.ItemStack s : custom) {
+                            if (!s.isEmpty()) { hasAny = true; break; }
+                        }
+                        if (hasAny) return custom;
+                    }
+                }
+            }
+        }
+        // Fallback al botín general de cofres de la misión
+        java.util.List<net.minecraft.world.item.ItemStack> fallback = new java.util.ArrayList<>();
+        for (int i = 0; i < buildingChestLootIds.size(); i++) {
+            try {
+                net.minecraft.resources.Identifier id = net.minecraft.resources.Identifier.parse(buildingChestLootIds.get(i));
+                net.minecraft.world.item.Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(id);
+                if (item != null && item != net.minecraft.world.item.Items.AIR) {
+                    int count = (i < buildingChestLootCounts.size()) ? Math.max(1, buildingChestLootCounts.get(i)) : 1;
+                    fallback.add(new net.minecraft.world.item.ItemStack(item, count));
+                }
+            } catch (Exception ignored) {}
+        }
+        return fallback;
+    }
+
+    public static java.util.List<net.minecraft.world.item.ItemStack> parseLootPack(String pack) {
+        java.util.List<net.minecraft.world.item.ItemStack> list = new java.util.ArrayList<>(27);
+        for (int s = 0; s < 27; s++) {
+            list.add(net.minecraft.world.item.ItemStack.EMPTY);
+        }
+        if (pack == null || pack.isBlank()) return list;
+
+        String[] entries = pack.split(";");
+        int seqSlot = 0;
+        for (String entry : entries) {
+            int slot = seqSlot;
+            String itemPart = entry;
+            if (entry.contains("@")) {
+                int atIdx = entry.indexOf('@');
+                try {
+                    slot = Integer.parseInt(entry.substring(0, atIdx));
+                    itemPart = entry.substring(atIdx + 1);
+                } catch (Exception ignored) {}
+            }
+            String[] parts = itemPart.split(":");
+            if (parts.length >= 2) {
+                try {
+                    String itemId = parts[0] + ":" + parts[1];
+                    int count = parts.length >= 3 ? Math.max(1, Integer.parseInt(parts[2])) : 1;
+                    net.minecraft.resources.Identifier id = net.minecraft.resources.Identifier.parse(itemId);
+                    net.minecraft.world.item.Item item = net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(id);
+                    if (item != null && item != net.minecraft.world.item.Items.AIR) {
+                        net.minecraft.world.item.ItemStack st = new net.minecraft.world.item.ItemStack(item, count);
+                        if (slot >= 0 && slot < list.size()) {
+                            list.set(slot, st);
+                        } else {
+                            list.add(st);
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+            seqSlot++;
+        }
+        return list;
+    }
+
+    public static String serializeLootPack(java.util.List<net.minecraft.world.item.ItemStack> items) {
+        if (items == null || items.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < items.size(); i++) {
+            net.minecraft.world.item.ItemStack st = items.get(i);
+            if (!st.isEmpty()) {
+                if (sb.length() > 0) sb.append(";");
+                sb.append(i).append("@")
+                  .append(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(st.getItem()).toString())
+                  .append(":")
+                  .append(st.getCount());
+            }
+        }
+        return sb.toString();
+    }
 
     public String getItemDisplayName() {
         if (requiredItemId == null || requiredItemId.isBlank()) return "Ítem";
@@ -240,6 +348,26 @@ public class Mission {
         for (BlockPos p : chestPoints) {
             buf.writeBlockPos(p);
         }
+
+        buf.writeVarInt(routePoints.size());
+        for (BlockPos p : routePoints) {
+            buf.writeBlockPos(p);
+        }
+
+        buf.writeVarInt(routePointNames.size());
+        for (String s : routePointNames) {
+            buf.writeUtf(s != null ? s : "");
+        }
+
+        buf.writeVarInt(customChestPositions.size());
+        for (BlockPos p : customChestPositions) {
+            buf.writeBlockPos(p);
+        }
+
+        buf.writeVarInt(customChestLootPack.size());
+        for (String s : customChestLootPack) {
+            buf.writeUtf(s != null ? s : "");
+        }
     }
 
     public static Mission readFromBuf(FriendlyByteBuf buf) {
@@ -322,6 +450,34 @@ public class Mission {
             chests.add(buf.readBlockPos());
         }
         mission.setChestPoints(chests);
+
+        int routeCount = buf.readVarInt();
+        java.util.List<BlockPos> routes = new java.util.ArrayList<>(routeCount);
+        for (int i = 0; i < routeCount; i++) {
+            routes.add(buf.readBlockPos());
+        }
+        mission.setRoutePoints(routes);
+
+        int routeNameCount = buf.readVarInt();
+        java.util.List<String> routeNames = new java.util.ArrayList<>(routeNameCount);
+        for (int i = 0; i < routeNameCount; i++) {
+            routeNames.add(buf.readUtf());
+        }
+        mission.setRoutePointNames(routeNames);
+
+        int customChestCount = buf.readVarInt();
+        java.util.List<BlockPos> customChests = new java.util.ArrayList<>(customChestCount);
+        for (int i = 0; i < customChestCount; i++) {
+            customChests.add(buf.readBlockPos());
+        }
+        mission.setCustomChestPositions(customChests);
+
+        int customChestPackCount = buf.readVarInt();
+        java.util.List<String> customChestPacks = new java.util.ArrayList<>(customChestPackCount);
+        for (int i = 0; i < customChestPackCount; i++) {
+            customChestPacks.add(buf.readUtf());
+        }
+        mission.setCustomChestLootPack(customChestPacks);
 
         return mission;
     }

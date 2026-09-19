@@ -45,17 +45,16 @@ public class CreateMissionScreen extends Screen {
     private BlockPos incursionRoofPos = null;
     private final List<BlockPos> incursionSpawns = new ArrayList<>();
     private final List<BlockPos> incursionChestPositions = new ArrayList<>();
+    private final List<BlockPos> incursionRoutePoints = new ArrayList<>();
+    private final List<String> incursionRoutePointNames = new ArrayList<>();
+    private final List<BlockPos> incursionCustomChestPositions = new ArrayList<>();
+    private final List<String> incursionCustomChestLootPack = new ArrayList<>();
     private List<String> incursionMobs = new ArrayList<>();
     private int incursionWaves = 4;
     private List<ItemStack> incursionChestItems = new ArrayList<>();
 
-    private Button incursionExtractionBtn;
-    private Button incursionRoofBtn;
-    private Button incursionSpawnBtn;
-    private Button incursionWavesBtn;
-    private Button incursionMobsBtn;
-    private Button incursionChestsBtn;
     private Button incursionWorldSetupBtn;
+    private Button mobSelectorBtn;
 
     private static final String[] TIERS = {"comun", "raro", "epico", "legendario", "personalizado"};
     private static final String[] TIER_NAMES = {"Común", "Raro", "Épico", "Legendario", "Personalizado"};
@@ -116,6 +115,18 @@ public class CreateMissionScreen extends Screen {
             if (existingMission.getChestPoints() != null) {
                 this.incursionChestPositions.addAll(existingMission.getChestPoints());
             }
+            if (existingMission.getRoutePoints() != null) {
+                this.incursionRoutePoints.addAll(existingMission.getRoutePoints());
+            }
+            if (existingMission.getRoutePointNames() != null) {
+                this.incursionRoutePointNames.addAll(existingMission.getRoutePointNames());
+            }
+            if (existingMission.getCustomChestPositions() != null) {
+                this.incursionCustomChestPositions.addAll(existingMission.getCustomChestPositions());
+            }
+            if (existingMission.getCustomChestLootPack() != null) {
+                this.incursionCustomChestLootPack.addAll(existingMission.getCustomChestLootPack());
+            }
 
             List<String> chestIds = existingMission.getBuildingChestLootIds();
             List<Integer> chestCounts = existingMission.getBuildingChestLootCounts();
@@ -161,7 +172,11 @@ public class CreateMissionScreen extends Screen {
             BlockPos extractionPos,
             BlockPos roofPos,
             List<BlockPos> spawns,
-            List<BlockPos> chestPositions
+            List<BlockPos> chestPositions,
+            List<BlockPos> routePoints,
+            List<String> routePointNames,
+            List<BlockPos> customChestPositions,
+            List<String> customChestLootPack
     ) {
         this.savedTitle = title;
         this.savedDesc = desc;
@@ -170,6 +185,9 @@ public class CreateMissionScreen extends Screen {
         this.customItems = new ArrayList<>(customItems);
         this.incursionWaves = waves;
         this.incursionMobs = new ArrayList<>(mobs);
+        if (mobSelectorBtn != null) {
+            mobSelectorBtn.setMessage(Component.literal("§b👾 Mobs (" + (incursionMobs.isEmpty() ? "Def" : incursionMobs.size()) + ")"));
+        }
         this.incursionChestItems = new ArrayList<>(chestLoot);
         this.incursionExtractionPos = extractionPos;
         this.incursionRoofPos = roofPos;
@@ -180,6 +198,22 @@ public class CreateMissionScreen extends Screen {
         this.incursionChestPositions.clear();
         if (chestPositions != null) {
             this.incursionChestPositions.addAll(chestPositions);
+        }
+        this.incursionRoutePoints.clear();
+        if (routePoints != null) {
+            this.incursionRoutePoints.addAll(routePoints);
+        }
+        this.incursionRoutePointNames.clear();
+        if (routePointNames != null) {
+            this.incursionRoutePointNames.addAll(routePointNames);
+        }
+        this.incursionCustomChestPositions.clear();
+        if (customChestPositions != null) {
+            this.incursionCustomChestPositions.addAll(customChestPositions);
+        }
+        this.incursionCustomChestLootPack.clear();
+        if (customChestLootPack != null) {
+            this.incursionCustomChestLootPack.addAll(customChestLootPack);
         }
         this.valuesInitialized = true;
     }
@@ -253,90 +287,9 @@ public class CreateMissionScreen extends Screen {
         reqCountBox.setValue(savedReqCount.isEmpty() ? "1" : savedReqCount);
         this.addRenderableWidget(reqCountBox);
 
-        // 4C. Controles específicos de INCURSIÓN (con espaciado vertical de 24px)
-        int halfW = 112;
-        int col2X = fieldX + 118;
-
-        incursionExtractionBtn = Button.builder(
-                Component.literal("📍 Entrada/Escape " + (incursionExtractionPos != null ? "§a✔" : "§7[Aquí]")),
-                b -> {
-                    Player p = Minecraft.getInstance().player;
-                    if (p != null) {
-                        incursionExtractionPos = p.blockPosition();
-                        incursionExtractionBtn.setMessage(Component.literal("📍 Entrada/Escape §a✔"));
-                    }
-                }
-        ).bounds(fieldX, panelY + 104, halfW, 18).build();
-        this.addRenderableWidget(incursionExtractionBtn);
-
-        incursionRoofBtn = Button.builder(
-                Component.literal("📍 Azotea/Cima " + (incursionRoofPos != null ? "§a✔" : "§7[Aquí]")),
-                b -> {
-                    Player p = Minecraft.getInstance().player;
-                    if (p != null) {
-                        incursionRoofPos = p.blockPosition();
-                        incursionRoofBtn.setMessage(Component.literal("📍 Azotea/Cima §a✔"));
-                    }
-                }
-        ).bounds(col2X, panelY + 104, halfW, 18).build();
-        this.addRenderableWidget(incursionRoofBtn);
-
-        incursionSpawnBtn = Button.builder(
-                Component.literal("➕ Spawn (" + incursionSpawns.size() + ")"),
-                b -> {
-                    Player p = Minecraft.getInstance().player;
-                    if (p != null) {
-                        incursionSpawns.add(p.blockPosition());
-                        incursionSpawnBtn.setMessage(Component.literal("➕ Spawn (" + incursionSpawns.size() + ")"));
-                    }
-                }
-        ).bounds(fieldX, panelY + 128, halfW, 18).build();
-        this.addRenderableWidget(incursionSpawnBtn);
-
-        incursionWavesBtn = Button.builder(
-                Component.literal("Oleadas: §e" + incursionWaves),
-                b -> {
-                    incursionWaves = (incursionWaves % 6) + 1;
-                    if (incursionWaves < 2) incursionWaves = 2;
-                    incursionWavesBtn.setMessage(Component.literal("Oleadas: §e" + incursionWaves));
-                }
-        ).bounds(col2X, panelY + 128, halfW, 18).build();
-        this.addRenderableWidget(incursionWavesBtn);
-
-        incursionMobsBtn = Button.builder(
-                Component.literal("🧟 Mobs (" + (incursionMobs.isEmpty() ? "Zombies" : incursionMobs.size()) + ")"),
-                b -> {
-                    saveInputValues();
-                    if (this.minecraft != null) {
-                        this.minecraft.gui.setScreen(new MobSelectorScreen(this, incursionMobs, mobs -> {
-                            this.incursionMobs = mobs;
-                            if (incursionMobsBtn != null) {
-                                incursionMobsBtn.setMessage(Component.literal("🧟 Mobs (" + (incursionMobs.isEmpty() ? "Zombies" : incursionMobs.size()) + ")"));
-                            }
-                        }));
-                    }
-                }
-        ).bounds(fieldX, panelY + 152, halfW, 18).build();
-        this.addRenderableWidget(incursionMobsBtn);
-
-        incursionChestsBtn = Button.builder(
-                Component.literal("📦 Botín Cofres (" + incursionChestItems.size() + ")"),
-                b -> {
-                    saveInputValues();
-                    if (this.minecraft != null) {
-                        this.minecraft.gui.setScreen(new LootEditorScreen(this, "incursion_chest", incursionChestItems, items -> {
-                            this.incursionChestItems = items;
-                            if (incursionChestsBtn != null) {
-                                incursionChestsBtn.setMessage(Component.literal("📦 Botín Cofres (" + incursionChestItems.size() + ")"));
-                            }
-                        }));
-                    }
-                }
-        ).bounds(col2X, panelY + 152, halfW, 18).build();
-        this.addRenderableWidget(incursionChestsBtn);
-
+        // 4C. Control específico de INCURSIÓN (Configuración en Mundo y Selección de Mobs)
         incursionWorldSetupBtn = Button.builder(
-                Component.literal("§6🚶 Marcar Puntos en el Mundo"),
+                Component.literal("§6🚶 En el Mundo"),
                 b -> {
                     saveInputValues();
                     IncursionSetupSession.start(
@@ -353,14 +306,35 @@ public class CreateMissionScreen extends Screen {
                             this.incursionExtractionPos,
                             this.incursionRoofPos,
                             this.incursionSpawns,
-                            this.incursionChestPositions
+                            this.incursionChestPositions,
+                            this.incursionRoutePoints,
+                            this.incursionRoutePointNames,
+                            this.incursionCustomChestPositions,
+                            this.incursionCustomChestLootPack
                     );
                     if (this.minecraft != null) {
                         this.minecraft.gui.setScreen(null);
                     }
                 }
-        ).bounds(fieldX, panelY + 176, fieldWidth, 19).build();
+        ).bounds(fieldX, panelY + 114, 114, 20).build();
         this.addRenderableWidget(incursionWorldSetupBtn);
+
+        mobSelectorBtn = Button.builder(
+                Component.literal("§b👾 Mobs (" + (incursionMobs.isEmpty() ? "Def" : incursionMobs.size()) + ")"),
+                b -> {
+                    saveInputValues();
+                    if (this.minecraft != null) {
+                        this.minecraft.gui.setScreen(new MobSelectorScreen(this, this.incursionMobs, selected -> {
+                            this.incursionMobs.clear();
+                            this.incursionMobs.addAll(selected);
+                            if (mobSelectorBtn != null) {
+                                mobSelectorBtn.setMessage(Component.literal("§b👾 Mobs (" + (incursionMobs.isEmpty() ? "Def" : incursionMobs.size()) + ")"));
+                            }
+                        }));
+                    }
+                }
+        ).bounds(fieldX + 118, panelY + 114, 112, 20).build();
+        this.addRenderableWidget(mobSelectorBtn);
 
         // 5. Selector de Tier de Recompensa
         tierButton = Button.builder(
@@ -417,30 +391,34 @@ public class CreateMissionScreen extends Screen {
         if (selectItemButton != null) { selectItemButton.visible = isItemRelated; selectItemButton.active = isItemRelated; }
         if (reqCountBox != null) { reqCountBox.visible = isItemRelated; reqCountBox.active = isItemRelated; }
 
-        if (incursionExtractionBtn != null) { incursionExtractionBtn.visible = isIncursion; incursionExtractionBtn.active = isIncursion; }
-        if (incursionRoofBtn != null) { incursionRoofBtn.visible = isIncursion; incursionRoofBtn.active = isIncursion; }
-        if (incursionSpawnBtn != null) { incursionSpawnBtn.visible = isIncursion; incursionSpawnBtn.active = isIncursion; }
-        if (incursionWavesBtn != null) { incursionWavesBtn.visible = isIncursion; incursionWavesBtn.active = isIncursion; }
-        if (incursionMobsBtn != null) { incursionMobsBtn.visible = isIncursion; incursionMobsBtn.active = isIncursion; }
-        if (incursionChestsBtn != null) { incursionChestsBtn.visible = isIncursion; incursionChestsBtn.active = isIncursion; }
-        if (incursionWorldSetupBtn != null) { incursionWorldSetupBtn.visible = isIncursion; incursionWorldSetupBtn.active = isIncursion; }
-
-        int tierY = isIncursion ? panelY + 200 : panelY + 148;
-        int lootDesignY = isIncursion ? panelY + 224 : panelY + 172;
+        if (incursionWorldSetupBtn != null) {
+            incursionWorldSetupBtn.visible = isIncursion;
+            incursionWorldSetupBtn.active = isIncursion;
+        }
+        if (mobSelectorBtn != null) {
+            mobSelectorBtn.visible = isIncursion;
+            mobSelectorBtn.active = isIncursion;
+        }
 
         if (tierButton != null) {
-            tierButton.setY(tierY);
+            tierButton.visible = !isIncursion;
+            tierButton.active = !isIncursion;
+            tierButton.setY(panelY + 148);
         }
-        if (designLootButton != null) {
-            designLootButton.setY(lootDesignY);
-        }
+
+        updateLootDesignButton();
     }
 
     private void updateLootDesignButton() {
+        String obj = OBJECTIVE_TYPES[selectedObjectiveIndex];
+        boolean isIncursion = "INCURSION".equalsIgnoreCase(obj);
         boolean isCustom = "personalizado".equalsIgnoreCase(TIERS[selectedTierIndex]);
+        int panelY = (this.height - PANEL_HEIGHT) / 2;
+
         if (designLootButton != null) {
-            designLootButton.visible = isCustom;
-            designLootButton.active = isCustom;
+            designLootButton.visible = !isIncursion && isCustom;
+            designLootButton.active = !isIncursion && isCustom;
+            designLootButton.setY(panelY + 172);
         }
     }
 
@@ -518,11 +496,15 @@ public class CreateMissionScreen extends Screen {
                 incursionWaves,
                 chestLootIds,
                 chestLootCounts,
-                incursionChestPositions
+                incursionChestPositions,
+                incursionRoutePoints,
+                incursionRoutePointNames,
+                incursionCustomChestPositions,
+                incursionCustomChestLootPack
         ));
 
         if (this.minecraft != null) {
-            this.minecraft.gui.setScreen(parentScreen);
+            this.minecraft.gui.setScreen(null);
         }
     }
 
@@ -551,7 +533,12 @@ public class CreateMissionScreen extends Screen {
             graphics.text(font, Component.literal("§7Ítem a Craftear:"), fieldX, panelY + 101, 0xFFCCCCCC);
             graphics.text(font, Component.literal("§7Cantidad:"), fieldX + 172, panelY + 101, 0xFFCCCCCC);
         } else if ("INCURSION".equalsIgnoreCase(obj)) {
-            graphics.centeredText(font, Component.literal("§7Configuración de Incursión en Edificio:"), centerX, panelY + 93, 0xFFCCCCCC);
+            graphics.centeredText(font, Component.literal("§6§lIncursión / Recorrido Táctico"), centerX, panelY + 98, 0xFFF59E0B);
+            int routes = incursionRoutePoints.size();
+            int chests = incursionChestPositions.size() + incursionCustomChestPositions.size();
+            int spawns = incursionSpawns.size();
+            graphics.centeredText(font, Component.literal("§7Ruta: §e" + routes + " §7| Spawns: §c" + spawns + " §7| Cofres: §a" + chests), centerX, panelY + 140, 0xFFE2E8F0);
+            graphics.centeredText(font, Component.literal("§8Configura el lugar libremente en el mundo"), centerX, panelY + 154, 0xFF94A3B8);
         }
 
         super.extractRenderState(graphics, mouseX, mouseY, delta);

@@ -38,10 +38,17 @@ public class MisionesModClient implements ClientModInitializer {
             MOD_CATEGORY
     ));
 
-    public static final KeyMapping SET_ROOF_KEY = KeyMappingHelper.registerKeyMapping(new KeyMapping(
-            "key.misionesmod.incursion.roof",
+    public static final KeyMapping ADD_ROUTE_KEY = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+            "key.misionesmod.incursion.route",
             InputConstants.Type.KEYSYM,
             InputConstants.KEY_H,
+            MOD_CATEGORY
+    ));
+
+    public static final KeyMapping SET_ESCAPE_KEY = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+            "key.misionesmod.incursion.escape",
+            InputConstants.Type.KEYSYM,
+            InputConstants.KEY_E,
             MOD_CATEGORY
     ));
 
@@ -66,6 +73,27 @@ public class MisionesModClient implements ClientModInitializer {
             MOD_CATEGORY
     ));
 
+    public static final KeyMapping EDIT_CHEST_LOOT_KEY = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+            "key.misionesmod.incursion.edit_chest_loot",
+            InputConstants.Type.KEYSYM,
+            InputConstants.KEY_L,
+            MOD_CATEGORY
+    ));
+
+    public static final KeyMapping HELP_SETUP_KEY = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+            "key.misionesmod.incursion.help",
+            InputConstants.Type.KEYSYM,
+            InputConstants.KEY_I,
+            MOD_CATEGORY
+    ));
+
+    public static final KeyMapping SELECT_MOBS_KEY = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+            "key.misionesmod.incursion.select_mobs",
+            InputConstants.Type.KEYSYM,
+            InputConstants.KEY_V,
+            MOD_CATEGORY
+    ));
+
     public static final List<Mission> clientMissions = new ArrayList<>();
     public static final java.util.Set<String> notifiedItemMissions = new java.util.HashSet<>();
     public static final java.util.Set<String> craftableItemIds = new java.util.HashSet<>();
@@ -80,6 +108,7 @@ public class MisionesModClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         LOGGER.info("Inicializando cliente de MisionesMod...");
+        com.misionesmod.client.hud.ClientHudConfig.load();
 
         // 1. Registrar elemento HUD para brújula y marcadores
         HudElementRegistry.addLast(
@@ -143,7 +172,12 @@ public class MisionesModClient implements ClientModInitializer {
                         payload.alivePlayers(),
                         payload.totalPlayers(),
                         payload.isEscapePhase(),
-                        payload.extractionPos()
+                        payload.extractionPos(),
+                        payload.isLootingPhase(),
+                        payload.lootingSeconds(),
+                        payload.chestsCount(),
+                        payload.currentObjectivePos(),
+                        payload.currentObjectiveTitle()
                 );
             });
         });
@@ -174,7 +208,12 @@ public class MisionesModClient implements ClientModInitializer {
                         com.misionesmod.client.gui.IncursionSetupSession.setExtraction(client.player.blockPosition(), client);
                     }
                 }
-                while (SET_ROOF_KEY.consumeClick()) {
+                while (ADD_ROUTE_KEY.consumeClick()) {
+                    if (client.player != null) {
+                        com.misionesmod.client.gui.IncursionSetupSession.addRoutePoint(client.player.blockPosition(), client);
+                    }
+                }
+                while (SET_ESCAPE_KEY.consumeClick()) {
                     if (client.player != null) {
                         com.misionesmod.client.gui.IncursionSetupSession.setRoof(client.player.blockPosition(), client);
                     }
@@ -189,6 +228,15 @@ public class MisionesModClient implements ClientModInitializer {
                 }
                 while (REGISTER_CHEST_KEY.consumeClick()) {
                     com.misionesmod.client.gui.IncursionSetupSession.registerTargetedChest(client);
+                }
+                while (EDIT_CHEST_LOOT_KEY.consumeClick()) {
+                    com.misionesmod.client.gui.IncursionSetupSession.editTargetedChestLoot(client);
+                }
+                while (HELP_SETUP_KEY.consumeClick()) {
+                    com.misionesmod.client.gui.IncursionSetupSession.printHelpGuide(client);
+                }
+                while (SELECT_MOBS_KEY.consumeClick()) {
+                    com.misionesmod.client.gui.IncursionSetupSession.openMobSelector(client);
                 }
                 while (OPEN_MENU_KEY.consumeClick()) {
                     com.misionesmod.client.gui.IncursionSetupSession.finishAndReopen(client);

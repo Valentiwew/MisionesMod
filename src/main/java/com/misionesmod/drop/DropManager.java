@@ -225,26 +225,26 @@ public class DropManager {
                     if (emptied) {
                         // 1. Eliminar bloque de cofre sin soltar ítem
                         ad.level.removeBlock(ad.pos, false);
-
-                        // 2. Animación de explosión (partículas y sonido)
-                        ad.level.sendParticles(
-                                ParticleTypes.EXPLOSION_EMITTER,
-                                ad.pos.getX() + 0.5, ad.pos.getY() + 0.5, ad.pos.getZ() + 0.5,
-                                1, 0, 0, 0, 0
-                        );
-                        ad.level.sendParticles(
-                                ParticleTypes.CAMPFIRE_COSY_SMOKE,
-                                ad.pos.getX() + 0.5, ad.pos.getY() + 0.5, ad.pos.getZ() + 0.5,
-                                25, 0.4, 0.4, 0.4, 0.05
-                        );
-                        ad.level.playSound(
-                                null,
-                                ad.pos.getX(), ad.pos.getY(), ad.pos.getZ(),
-                                SoundEvents.GENERIC_EXPLODE,
-                                SoundSource.BLOCKS,
-                                1.5f, 1.1f
-                        );
                     }
+
+                    // 2. Animación de explosión estética (partículas y sonido) al vaciarse O al picarse
+                    ad.level.sendParticles(
+                            ParticleTypes.EXPLOSION_EMITTER,
+                            ad.pos.getX() + 0.5, ad.pos.getY() + 0.5, ad.pos.getZ() + 0.5,
+                            1, 0, 0, 0, 0
+                    );
+                    ad.level.sendParticles(
+                            ParticleTypes.CAMPFIRE_COSY_SMOKE,
+                            ad.pos.getX() + 0.5, ad.pos.getY() + 0.5, ad.pos.getZ() + 0.5,
+                            25, 0.4, 0.4, 0.4, 0.05
+                    );
+                    ad.level.playSound(
+                            null,
+                            ad.pos.getX(), ad.pos.getY(), ad.pos.getZ(),
+                            SoundEvents.GENERIC_EXPLODE,
+                            SoundSource.BLOCKS,
+                            1.5f, 1.1f
+                    );
 
                     // Encontrar jugador más cercano que looteó (radio de 16 bloques)
                     ServerPlayer looter = null;
@@ -258,14 +258,13 @@ public class DropManager {
                     }
                     String looterName = (looter != null) ? looter.getName().getString() : "un jugador";
 
-                    // Anuncio sobre la hotbar con animación
+                    // Anuncio sobre la hotbar sin chat
                     ModPackets.NotificationPayload lootedNotif = new ModPackets.NotificationPayload(
-                            "§6§l[AIRDROP] §f¡" + ad.dropTitle + " fue saqueado por §e" + looterName + "§f!",
+                            "§6El " + ad.dropTitle + " fue tomado por §e" + looterName,
                             0xFFF59E0B
                     );
-                    Component chatMsg = Component.literal("§6§l[AIRDROP] §f¡" + ad.dropTitle + " fue saqueado por §e" + looterName + "§f!");
 
-                    // 3. Remover el marcador para todos los jugadores y anunciar
+                    // 3. Remover el marcador para todos los jugadores y anunciar en hotbar
                     ModPackets.SetWaypointPayload removePayload = new ModPackets.SetWaypointPayload(
                             false,
                             ad.dropTitle,
@@ -274,7 +273,6 @@ public class DropManager {
                     for (ServerPlayer p : server.getPlayerList().getPlayers()) {
                         ServerPlayNetworking.send(p, removePayload);
                         ServerPlayNetworking.send(p, lootedNotif);
-                        p.sendSystemMessage(chatMsg);
                     }
                 }
             }
@@ -336,10 +334,17 @@ public class DropManager {
                 0.0
         );
         level.sendParticles(
-                ParticleTypes.CAMPFIRE_SIGNAL_SMOKE,
-                landPos.getX() + 0.5, landPos.getY() + 1.0, landPos.getZ() + 0.5,
-                60,
-                0.3, 2.5, 0.3,
+                ParticleTypes.CAMPFIRE_COSY_SMOKE,
+                landPos.getX() + 0.5, landPos.getY() + 0.8, landPos.getZ() + 0.5,
+                30,
+                0.3, 0.8, 0.3,
+                0.03
+        );
+        level.sendParticles(
+                ParticleTypes.SMOKE,
+                landPos.getX() + 0.5, landPos.getY() + 0.8, landPos.getZ() + 0.5,
+                20,
+                0.3, 0.5, 0.3,
                 0.04
         );
         level.sendParticles(
@@ -380,15 +385,13 @@ public class DropManager {
         int dropNum = ++dropCounter;
         String dropTitle = "Drop #" + dropNum; // Total misterio, sin revelar tier
 
-        // 1. Enviar notificación animada sobre la hotbar y mensaje en el chat con coordenadas
+        // 1. Enviar notificación sobre la hotbar con coordenadas (sin chat ni palabra AirDrop)
         ModPackets.NotificationPayload dropNotif = new ModPackets.NotificationPayload(
-                "§d§l[AIRDROP] §f¡Un drop está por caer en §aX: " + landPos.getX() + ", Z: " + landPos.getZ() + "§f!",
-                0xFFEC4899
+                "§6Un Drop caerá en §eX: " + landPos.getX() + ", Z: " + landPos.getZ(),
+                0xFFF59E0B
         );
-        Component chatMsg = Component.literal("§d§l[AIRDROP] §f¡Un suministro aéreo caerá en §eX: " + landPos.getX() + ", Y: " + landPos.getY() + ", Z: " + landPos.getZ() + "§f!");
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             ServerPlayNetworking.send(player, dropNotif);
-            player.sendSystemMessage(chatMsg);
         }
 
         // 2. Transmitir waypoint a todos los jugadores

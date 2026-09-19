@@ -82,7 +82,11 @@ public class ModPackets {
             String objectiveType, String requiredItemId, int requiredCount, List<String> itemIds, List<Integer> counts,
             BlockPos extractionPos, BlockPos roofPos, int incursionRadius, List<BlockPos> spawnPoints,
             List<String> mobTypes, int totalWaves, List<String> chestLootIds, List<Integer> chestLootCounts,
-            List<BlockPos> chestPoints
+            List<BlockPos> chestPoints,
+            List<BlockPos> routePoints,
+            List<String> routePointNames,
+            List<BlockPos> customChestPositions,
+            List<String> customChestLootPack
     ) implements CustomPacketPayload {
         public static final Type<CreateMissionPayload> TYPE = new Type<>(Identifier.fromNamespaceAndPath("misionesmod", "create_mission"));
         public static final StreamCodec<FriendlyByteBuf, CreateMissionPayload> CODEC = CustomPacketPayload.codec(
@@ -111,7 +115,11 @@ public class ModPackets {
                     buf.readVarInt(),
                     readStringList(buf),
                     readIntList(buf),
-                    readBlockPosList(buf)
+                    readBlockPosList(buf),
+                    readBlockPosList(buf),
+                    readStringList(buf),
+                    readBlockPosList(buf),
+                    readStringList(buf)
             );
         }
 
@@ -196,6 +204,26 @@ public class ModPackets {
             buf.writeVarInt(chestPoints != null ? chestPoints.size() : 0);
             if (chestPoints != null) {
                 for (BlockPos p : chestPoints) buf.writeBlockPos(p);
+            }
+
+            buf.writeVarInt(routePoints != null ? routePoints.size() : 0);
+            if (routePoints != null) {
+                for (BlockPos p : routePoints) buf.writeBlockPos(p);
+            }
+
+            buf.writeVarInt(routePointNames != null ? routePointNames.size() : 0);
+            if (routePointNames != null) {
+                for (String s : routePointNames) buf.writeUtf(s != null ? s : "");
+            }
+
+            buf.writeVarInt(customChestPositions != null ? customChestPositions.size() : 0);
+            if (customChestPositions != null) {
+                for (BlockPos p : customChestPositions) buf.writeBlockPos(p);
+            }
+
+            buf.writeVarInt(customChestLootPack != null ? customChestLootPack.size() : 0);
+            if (customChestLootPack != null) {
+                for (String s : customChestLootPack) buf.writeUtf(s != null ? s : "");
             }
         }
 
@@ -423,7 +451,12 @@ public class ModPackets {
             int alivePlayers,
             int totalPlayers,
             boolean isEscapePhase,
-            BlockPos extractionPos
+            BlockPos extractionPos,
+            boolean isLootingPhase,
+            int lootingSeconds,
+            int chestsCount,
+            BlockPos currentObjectivePos,
+            String currentObjectiveTitle
     ) implements CustomPacketPayload {
         public static final Type<SyncIncursionStatusPayload> TYPE = new Type<>(Identifier.fromNamespaceAndPath("misionesmod", "sync_incursion_status"));
         public static final StreamCodec<FriendlyByteBuf, SyncIncursionStatusPayload> CODEC = CustomPacketPayload.codec(
@@ -442,7 +475,12 @@ public class ModPackets {
                     buf.readVarInt(),
                     buf.readVarInt(),
                     buf.readBoolean(),
-                    buf.readBoolean() ? buf.readBlockPos() : null
+                    buf.readBoolean() ? buf.readBlockPos() : null,
+                    buf.readBoolean(),
+                    buf.readVarInt(),
+                    buf.readVarInt(),
+                    buf.readBoolean() ? buf.readBlockPos() : null,
+                    buf.readUtf()
             );
         }
 
@@ -461,6 +499,15 @@ public class ModPackets {
             if (hasExt) {
                 buf.writeBlockPos(extractionPos);
             }
+            buf.writeBoolean(isLootingPhase);
+            buf.writeVarInt(lootingSeconds);
+            buf.writeVarInt(chestsCount);
+            boolean hasObj = currentObjectivePos != null;
+            buf.writeBoolean(hasObj);
+            if (hasObj) {
+                buf.writeBlockPos(currentObjectivePos);
+            }
+            buf.writeUtf(currentObjectiveTitle != null ? currentObjectiveTitle : "");
         }
 
         @Override

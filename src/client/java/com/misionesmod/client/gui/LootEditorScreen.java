@@ -159,9 +159,7 @@ public class LootEditorScreen extends Screen {
     private void saveAndClose() {
         List<ItemStack> items = new ArrayList<>();
         for (ItemStack s : lootSlots) {
-            if (!s.isEmpty()) {
-                items.add(s.copy());
-            }
+            items.add(s.isEmpty() ? ItemStack.EMPTY : s.copy());
         }
 
         if (saveCallback != null) {
@@ -169,9 +167,11 @@ public class LootEditorScreen extends Screen {
         } else if ("drop".equalsIgnoreCase(targetId)) {
             List<String> ids = new ArrayList<>();
             List<Integer> counts = new ArrayList<>();
-            for (ItemStack s : items) {
-                ids.add(BuiltInRegistries.ITEM.getKey(s.getItem()).toString());
-                counts.add(s.getCount());
+            for (ItemStack s : lootSlots) {
+                if (!s.isEmpty()) {
+                    ids.add(BuiltInRegistries.ITEM.getKey(s.getItem()).toString());
+                    counts.add(s.getCount());
+                }
             }
             ClientPlayNetworking.send(new ModPackets.SaveCustomLootPayload("drop", ids, counts));
         }
@@ -266,11 +266,9 @@ public class LootEditorScreen extends Screen {
 
                         if (heldStack.isEmpty()) {
                             heldStack = new ItemStack(item, count);
-                        } else if (heldStack.is(item)) {
-                            int space = heldStack.getMaxStackSize() - heldStack.getCount();
-                            heldStack.grow(Math.min(space, count));
                         } else {
-                            heldStack = new ItemStack(item, count);
+                            // Al hacer clic en cualquier ítem del catálogo con un ítem sostenido, se elimina rápidamente como en Creativo
+                            heldStack = ItemStack.EMPTY;
                         }
                         return true;
                     }

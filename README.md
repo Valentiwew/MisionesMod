@@ -1,6 +1,6 @@
 # MisionesMod
 
-Mod de misiones tacticas, incursiones en edificios, suministros aereos y gestion de botin para Minecraft Fabric. Disenado especificamente para series y servidores tematicos de supervivencia, apocalipsis zombie y cooperacion.
+Mod de misiones tacticas, incursiones por oleadas, suministros aereos y gestion de botin para Minecraft Fabric. Disenado especificamente para servidores tematicos de supervivencia, cooperacion y combate tactico.
 
 - **Version de Minecraft:** 26.2 / 26.3
 - **Cargador de Mods:** Fabric Loader (>= 0.19.5)
@@ -11,78 +11,83 @@ Mod de misiones tacticas, incursiones en edificios, suministros aereos y gestion
 
 ## Caracteristicas Principales
 
-### 1. Sistema de Incursiones en Edificios
-Permite disenar y ejecutar incursiones tacticas dentro de estructuras cerradas o rascacielos con progresion vertical:
-- **Oleadas Progresivas:** El combate transcurre por oleadas sucesivas a medida que los jugadores avanzan piso por piso hacia la cima.
-- **Asalto a la Azotea:** La oleada final se combate en la azotea o cima del edificio bajo el modo Climax en Azotea.
-- **Fase de Escape:** Al despejar la azotea, los supervivientes deben descender rapidamente hasta el punto de entrada para asegurar el botin y completar la mision.
-- **Reinicio por Eliminacion:** Si todos los jugadores del grupo caen en combate, la mision se reinicia. Si al menos uno sobrevive y llega a la entrada, el equipo triunfa.
-- **Proteccion Antirreinicios:** Incorpora tiempo de enfriamiento y comprobacion de zona para impedir reinicios involuntarios.
+### 1. Sistema de Incursiones en Estructuras y Edificios
+Permite disenar y ejecutar incursiones tacticas completas con seguimiento en vivo:
+- **Punto de Inicio y Reunion:** Los jugadores se congregan en la entrada. La incursion no inicia hasta reunir al equipo, iniciando un conteo regresivo sincronizado.
+- **Rutas y Checkpoints Dinamicos:** El objetivo guia a los jugadores a traves de una sucesion de puntos de control. Al alcanzar un checkpoint (rango de 4 bloques), se emite un sonido de campana y la guia avanza automaticamente al siguiente objetivo sin repetirse.
+- **Oleadas de Combate:** Cada oleada genera grupos de enemigos en los puntos de spawn definidos. Durante las oleadas activas, los cofres permanecen bloqueados contra apertura y rotura.
+- **Fase de Botin:** Tras superar las oleadas, se activa un temporizador de saqueo donde los cofres se desbloquean.
+- **Desaparicion de Cofres Vacios:** Al saquear y vaciar por completo un cofre, este desaparece instantaneamente emitiendo humo y sonido de explosion.
+- **Deteccion y Anuncio de Saqueadores:** El mod registra a los jugadores que interactuan con cada cofre y anuncia publicamente quienes tomaron los suministros (ejemplo: "<Jugador1> y <Jugador2> tomaron cosas del cofre #1").
+- **Fase de Escape y Evacuacion:** Se activan refuerzos hostiles y los supervivientes deben descender o alcanzar la zona de extraccion/escape para recibir la recompensa. Si todos los participantes caen, la incursion fracasa.
 
-### 2. Registro de Cofres de Botin en Estructuras
-- Los administradores pueden marcar cofres preexistentes dentro de un edificio con solo apuntarles la mira y pulsar una tecla.
-- Cada cofre registrado recibe un identificador visual y se rellena dinamicamente con el botin configurado al iniciar la incursion.
+### 2. Tipos de Misiones
+- **Incursion (Edificio / Estructura):** Progresion por oleadas, recorrido de checkpoints, saqueo de cofres con botin personalizado y huida a la salida.
+- **Obtencion de Item:** Recoleccion de cantidades especificas de materiales o recursos para su entrega y validacion automatica.
+- **Crafteo de Item:** Fabricacion obligatoria en mesa de trabajo o cuadricula de inventario. Utiliza la estadistica oficial de fabricacion del jugador (`Stats.ITEM_CRAFTED`), evitando que se complete la mision simplemente recogiendo items arrojados al suelo.
 
-### 3. Tipos de Misiones Disponibles
-- **Incursion (Edificio):** Combate por oleadas, exploracion vertical, saqueo de cofres y huida a la zona de extraccion.
-- **Obtencion de Item:** Recoleccion de cantidades especificas de materiales o recursos para su entrega automatica.
-- **Crafteo de Item:** Fabricacion guiada con soporte para recetas y cantidades requeridas.
+### 3. Suministros Aereos (Drops)
+- Cajas de suministros que descienden desde el cielo con bengalas de humo y senalizadores.
+- Notificacion en pantalla y marcador con flecha direccional hacia la caja.
+- Al vaciar el drop, este se consume y anuncia al jugador que obtuvo el contenido.
+- Tiers preconfigurados: Comun, Raro, Epico, Legendario y Personalizado.
 
-### 4. Suministros Aereos (Drops)
-- Generacion de cajas de suministros que descienden desde el cielo acompanadas de humo y bengalas de senalizacion.
-- Tiers de botin preconfigurados: Comun, Raro, Epico, Legendario y Personalizado.
-- Comandos dedicados para invocar suministros manuales o programados (`/drop`).
+### 4. Selector de Mobs y Editor de Botin Integrado
+- **Selector de Mobs:** Interfaz con buscador en tiempo real compatible con monstruos vanilla y de cualquier mod instalado en el servidor.
+- **Editor de Botin:** Permite configurar visualmente el contenido exacto de los drops y cofres de incursion desde el inventario del juego, sin requerir edicion manual de archivos JSON.
 
-### 5. Editor de Drop y Botin Integrado
-- Menu visual accesible desde el modo creativo para disenar tablas de botin sin tocar archivos JSON ni reiniciar el servidor.
-- Permite arrastrar cualquier item del catalogo (incluidos items de otros mods) y definir cantidades individuales.
-
-### 6. HUD Tactico y Notificaciones
-- **Notificaciones Apiladas:** Mensajes contextuales sobre el hotbar que se despliegan en tiempo real sin retrasos, apilandose verticalmente de forma ordenada si coinciden varios eventos.
-- **Marcadores 3D (Waypoints):** Guia visual en pantalla que senala distancia en metros y ubicacion exacta de entradas, azoteas, puntos de aparicion de enemigos y cajas de suministros.
+### 5. Interfaz Visual (HUD) y Brujula Direccional
+- **Brujula Dinamica:** Flechas direccionales contextuales (arriba, abajo, izquierda, derecha) y distancia en metros hacia el objetivo actual (punto de inicio, checkpoints, salida o suministros aereos).
+- **Iconos de Items:** En misiones de crafteo y obtencion, el HUD proyecta el icono del item requerido junto al progreso numerico.
+- **Menu de Ajustes de HUD:** Accesible para activar/desactivar el widget en pantalla y seleccionar la esquina deseada (Superior Izquierda, Superior Derecha, Inferior Izquierda, Inferior Derecha).
 
 ---
 
-## Controles y Teclas
+## Controles y Atajos de Teclado
 
 ### Jugadores
-- **M:** Abre la interfaz principal de misiones (consulta de estado, seguimiento y misiones activas).
+- **M:** Abre la interfaz principal de misiones activas y disponibles.
 
-### Administradores (Modo Construccion / Marcado en el Mundo)
-Dentro de la pantalla de creacion de mision, al pulsar "Marcar Puntos en el Mundo", se desbloquean los siguientes controles rapidos:
-- **G:** Establece el punto de Entrada y Escape (puerta de acceso a nivel del suelo).
-- **H:** Establece la Azotea o Cima del edificio.
-- **J:** Anade un punto de aparicion de enemigos (spawn) en la posicion actual del administrador.
-- **C:** Apuntando a un cofre, lo registra o desregistra como cofre de botin de incursion.
-- **K:** Limpia todos los puntos de aparicion registrados.
-- **M:** Finaliza la sesion de marcado y regresa a la pantalla de edicion con todos los datos guardados.
+### Administradores (Modo "En el Mundo")
+Al presionar el boton "En el Mundo" en la creacion o edicion de una incursion, el administrador ingresa al modo de configuracion rapida:
+- **C (Checkpoint):** Anade un punto de control secuencial en la posicion actual.
+- **R (Inicio):** Fija el punto de inicio y reunion de la incursion.
+- **X (Escape):** Establece la zona de extraccion y escape final.
+- **G (Mob Spawn):** Registra un punto de aparicion de oleadas.
+- **B (Loot):** Registra un cofre apuntado o anade una posicion de cofre.
+- **V (Mobs):** Abre el selector de mobs vanilla y mods para elegir que enemigos generara la incursion.
+- **K (Limpiar):** Vacia todos los puntos y configuraciones registradas en la sesion actual.
+- **M (Listo):** Guarda los cambios del mapa y regresa a la pantalla de mision.
 
 ---
 
 ## Comandos
 
 - `/drop <tier>`: Invoca un suministro aereo del tier indicado (comun, raro, epico, legendario, personalizado).
-- `/misiones`: Acceso directo por comando al panel de gestion.
+- `/misiones`: Abre el panel general de misiones del mod.
 
 ---
 
 ## Requisitos e Instalacion
- 
+
 1. **Minecraft:** Version 26.2 o 26.3.
 2. **Fabric Loader:** Version 0.19.5 o superior.
 3. **Java:** Java Runtime Environment 25.
-4. **Fabric API:** Descargar e instalar la version de Fabric API para Minecraft 26.2/26.3 en la carpeta `mods`.
-5. **Mod:** Colocar el archivo `misionesmod-26.2-1.0.0.jar` (o `misionesmod-26.3-1.0.0.jar` segun la version del juego) dentro de la carpeta `mods` tanto en el cliente como en el servidor.
+4. **Fabric API:** Instalar la version correspondiente a 26.2 / 26.3 en la carpeta `mods`.
+5. **Mod:** Colocar el archivo `misionesmod-26.2-1.0.0.jar` (o la version para 26.3) dentro de la carpeta `mods` en cliente y servidor.
 
 ---
 
-## Compilacion desde Codigo Fuente
+## Compilacion
 
 Para compilar el proyecto manualmente con Gradle:
 
 ```bash
-./gradlew build
+# Compilar para la version base (26.2)
+./gradlew jar
+
+# Compilar para la version 26.3
+./gradlew jar263
 ```
 
-El archivo `.jar` resultante se encontrara en la ruta:
-`build/libs/misionesmod-<version>.jar`
+Los archivos `.jar` generados se ubican en la carpeta `build/libs/`.

@@ -42,6 +42,7 @@ public class MisionesScreen extends Screen {
     private Button deleteButton;
     private Button dropButton;
     private Button createMissionButton;
+    private boolean isAdmin;
 
     // Dimensiones amplias, centradas y proporcionadas
     private static final int PANEL_WIDTH = 416;
@@ -196,8 +197,7 @@ public class MisionesScreen extends Screen {
         int actionBtnY = panelY + PANEL_HEIGHT - 24;
 
         Player player = Minecraft.getInstance().player;
-        boolean isAdmin = player != null && Commands.LEVEL_GAMEMASTERS.check(player.permissions());
-        lastAdminState = isAdmin;
+        this.isAdmin = player != null && Commands.LEVEL_GAMEMASTERS.check(player.permissions());
 
         trackButton = Button.builder(
                 Component.translatable("gui.misionesmod.btn.track"),
@@ -219,8 +219,7 @@ public class MisionesScreen extends Screen {
             this.addRenderableWidget(deleteButton);
         }
 
-        // Barra inferior externa para Administradores
-        int bottomY = panelY + PANEL_HEIGHT + 4;
+        // Botones de Administrador integrados en la barra superior del panel (visibles en GUI Scale 5)
         if (isAdmin) {
             createMissionButton = Button.builder(
                     Component.literal("§e+ Nueva Misión"),
@@ -229,7 +228,7 @@ public class MisionesScreen extends Screen {
                             this.minecraft.gui.setScreen(new CreateMissionScreen(this));
                         }
                     }
-            ).bounds(panelX, bottomY, 115, 18).build();
+            ).bounds(panelX + PANEL_WIDTH - 208, panelY + 2, 101, 16).build();
             this.addRenderableWidget(createMissionButton);
 
             dropButton = Button.builder(
@@ -239,9 +238,19 @@ public class MisionesScreen extends Screen {
                             this.minecraft.gui.setScreen(new TriggerDropScreen(this));
                         }
                     }
-            ).bounds(panelX + 120, bottomY, 115, 18).build();
+            ).bounds(panelX + PANEL_WIDTH - 104, panelY + 2, 101, 16).build();
             this.addRenderableWidget(dropButton);
         }
+
+        Button hudConfigButton = Button.builder(
+                Component.literal("§b⚙ HUD"),
+                b -> {
+                    if (this.minecraft != null) {
+                        this.minecraft.gui.setScreen(new HudConfigScreen(this));
+                    }
+                }
+        ).bounds(panelX + PANEL_WIDTH - (isAdmin ? 262 : 54), panelY + 2, 50, 16).build();
+        this.addRenderableWidget(hudConfigButton);
 
         updateActionButtons();
     }
@@ -388,12 +397,12 @@ public class MisionesScreen extends Screen {
         graphics.outline(panelX, panelY, PANEL_WIDTH, PANEL_HEIGHT, 0xFF334155);
 
         // Barra de encabezado
-        graphics.fill(panelX + 1, panelY + 1, panelX + PANEL_WIDTH - 1, panelY + 20, 0xFF0F172A);
-        graphics.fill(panelX, panelY + 20, panelX + PANEL_WIDTH, panelY + 21, 0xFF1E293B);
-        graphics.text(font, Component.literal("§6§lPANEL DE MISIONES"), panelX + 10, panelY + 6, 0xFFFFFFFF);
+        graphics.fill(panelX + 1, panelY + 1, panelX + PANEL_WIDTH - 1, panelY + 21, 0xFF0F172A);
+        graphics.fill(panelX, panelY + 21, panelX + PANEL_WIDTH, panelY + 22, 0xFF1E293B);
+        graphics.text(font, Component.literal("§6§lPANEL DE MISIONES"), panelX + 10, panelY + 7, 0xFFFFFFFF);
 
         // Divisor vertical entre lista y detalle
-        graphics.fill(panelX + 147, panelY + 21, panelX + 148, panelY + PANEL_HEIGHT - 1, 0xFF1E293B);
+        graphics.fill(panelX + 147, panelY + 22, panelX + 148, panelY + PANEL_HEIGHT - 1, 0xFF1E293B);
 
         List<Mission> missions = getDisplayedMissions();
         int rightX = panelX + 154;
@@ -599,11 +608,11 @@ public class MisionesScreen extends Screen {
                 BlockPos pos = current.getTargetPos();
                 if (pos != null) {
                     if (isCompleted) {
-                        graphics.text(font, Component.literal("§7Objetivo: Incursión en Edificio (Completada)"), rightX, objY, 0xFF888888);
-                        graphics.text(font, Component.literal("§8Edificio: X: " + pos.getX() + ", Z: " + pos.getZ() + " | Oleadas: " + current.getTotalWaves()), rightX, objY + 12, 0xFF64748B);
+                        graphics.text(font, Component.literal("§7Objetivo: Incursión (Completada)"), rightX, objY, 0xFF888888);
+                        graphics.text(font, Component.literal("§8Zona: X: " + pos.getX() + ", Z: " + pos.getZ() + " | Oleadas: " + current.getTotalWaves()), rightX, objY + 12, 0xFF64748B);
                         nextSectionY = objY + 26;
                     } else {
-                        graphics.text(font, Component.literal("§c§lObjetivo: §fIncursión en Edificio"), rightX, objY, 0xFFFFFFFF);
+                        graphics.text(font, Component.literal("§c§lObjetivo: §fIncursión en Zona"), rightX, objY, 0xFFFFFFFF);
                         graphics.text(font, Component.literal("§7Entrada: §eX: " + pos.getX() + ", Z: " + pos.getZ()), rightX, objY + 12, 0xFFFFFFFF);
                         if (player != null) {
                             double dist = Math.sqrt(pos.distToCenterSqr(player.getX(), player.getY(), player.getZ()));
@@ -611,13 +620,14 @@ public class MisionesScreen extends Screen {
                         } else {
                             graphics.text(font, Component.literal("§7Oleadas: §c" + current.getTotalWaves()), rightX, objY + 24, 0xFFFFFFFF);
                         }
-                        if (current.getRoofPos() != null) {
-                            graphics.text(font, Component.literal("§7Azotea: §eY=" + current.getRoofPos().getY() + " §7| Spawns: §e" + current.getSpawnPoints().size() + " §7| Cofres: §e" + current.getChestPoints().size()), rightX, objY + 36, 0xFF94A3B8);
-                            nextSectionY = objY + 50;
+                        if (isAdmin) {
+                            int spawns = current.getSpawnPoints() != null ? current.getSpawnPoints().size() : 0;
+                            int chests = current.getChestPoints() != null ? current.getChestPoints().size() : 0;
+                            graphics.text(font, Component.literal("§8[Admin] Spawns: " + spawns + " | Cofres: " + chests), rightX, objY + 36, 0xFF94A3B8);
                         } else {
-                            graphics.text(font, Component.literal("§7Spawns: §e" + current.getSpawnPoints().size() + " §7| Cofres: §e" + current.getChestPoints().size()), rightX, objY + 36, 0xFF94A3B8);
-                            nextSectionY = objY + 50;
+                            graphics.text(font, Component.literal("§7Misión: §fSuperar oleadas y escapar"), rightX, objY + 36, 0xFF94A3B8);
                         }
+                        nextSectionY = objY + 50;
                     }
                 } else {
                     graphics.text(font, Component.literal("§cObjetivo: Incursión"), rightX, objY, 0xFFFFFFFF);

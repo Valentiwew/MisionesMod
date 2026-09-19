@@ -10,8 +10,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.phys.BlockHitResult;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class IncursionSetupSession {
 
@@ -29,11 +28,14 @@ public class IncursionSetupSession {
     public static List<String> savedMobs = new ArrayList<>();
     public static List<ItemStack> savedChestLoot = new ArrayList<>();
 
-    // Puntos del edificio
-    public static BlockPos extractionPos = null;
-    public static BlockPos roofPos = null;
+    // Puntos y recorrido de la incursión
+    public static BlockPos extractionPos = null; // Punto de Inicio / Reunión
+    public static BlockPos roofPos = null;       // Punto de Escape / Extracción
+    public static final List<BlockPos> routePoints = new ArrayList<>();
+    public static final List<String> routePointNames = new ArrayList<>();
     public static final List<BlockPos> spawnPoints = new ArrayList<>();
     public static final List<BlockPos> savedChestPositions = new ArrayList<>();
+    public static final Map<BlockPos, List<ItemStack>> customChestLootMap = new HashMap<>();
 
     public static void start(
             CreateMissionScreen screen,
@@ -49,7 +51,11 @@ public class IncursionSetupSession {
             BlockPos currentExtraction,
             BlockPos currentRoof,
             List<BlockPos> currentSpawns,
-            List<BlockPos> currentChests
+            List<BlockPos> currentChests,
+            List<BlockPos> currentRoutes,
+            List<String> currentRouteNames,
+            List<BlockPos> currentCustomChestPositions,
+            List<String> currentCustomChestPacks
     ) {
         parentScreen = screen;
         existingMission = mission;
@@ -64,25 +70,48 @@ public class IncursionSetupSession {
 
         extractionPos = currentExtraction;
         roofPos = currentRoof;
+
         spawnPoints.clear();
         if (currentSpawns != null) {
             spawnPoints.addAll(currentSpawns);
         }
+
         savedChestPositions.clear();
         if (currentChests != null) {
             savedChestPositions.addAll(currentChests);
         }
 
-        active = true;
-
-        if (Minecraft.getInstance().player != null) {
-            Minecraft.getInstance().player.playSound(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 0.8f, 1.2f);
+        routePoints.clear();
+        if (currentRoutes != null) {
+            routePoints.addAll(currentRoutes);
         }
 
-        WaypointHudRenderer.showHotbarNotification(
-                "§6§l[MODO EDIFICIO] §fMuévete por el edificio para fijar puntos §7([M] para terminar)",
-                0xFFF59E0B
-        );
+        routePointNames.clear();
+        if (currentRouteNames != null) {
+            routePointNames.addAll(currentRouteNames);
+        }
+
+        customChestLootMap.clear();
+        if (currentCustomChestPositions != null && currentCustomChestPacks != null) {
+            for (int i = 0; i < Math.min(currentCustomChestPositions.size(), currentCustomChestPacks.size()); i++) {
+                BlockPos cp = currentCustomChestPositions.get(i);
+                List<ItemStack> items = Mission.parseLootPack(currentCustomChestPacks.get(i));
+                customChestLootMap.put(cp, items);
+                if (!savedChestPositions.contains(cp)) {
+                    savedChestPositions.add(cp);
+                }
+            }
+        }
+    }
+
+    public static String statusMessage = "Muévete por la zona para fijar los puntos ([M] para terminar)";
+    public static int statusColor = 0xFFF59E0B;
+    public static long statusExpiry = 0L;
+
+    public static void setStatus(String message, int color) {
+        statusMessage = message;
+        statusColor = color;
+        statusExpiry = System.currentTimeMillis() + 6000L;
     }
 
     public static void setExtraction(BlockPos pos, Minecraft mc) {
@@ -100,10 +129,7 @@ public class IncursionSetupSession {
                 );
             }
         }
-        WaypointHudRenderer.showHotbarNotification(
-                "§a✔ Entrada / Escape fijada en X: " + pos.getX() + ", Y: " + pos.getY() + ", Z: " + pos.getZ(),
-                0xFF22C55E
-        );
+        setStatus("✔ Punto de Inicio fijado en X: " + pos.getX() + ", Y: " + pos.getY() + ", Z: " + pos.getZ(), 0xFF22C55E);
     }
 
     public static void setRoof(BlockPos pos, Minecraft mc) {
@@ -121,10 +147,27 @@ public class IncursionSetupSession {
                 );
             }
         }
-        WaypointHudRenderer.showHotbarNotification(
-                "§e✔ Azotea/Cima fijada en X: " + pos.getX() + ", Y: " + pos.getY() + ", Z: " + pos.getZ(),
-                0xFFF59E0B
-        );
+        setStatus("Punto de Escape establecido en X: " + pos.getX() + ", Y: " + pos.getY() + ", Z: " + pos.getZ(), 0xFFF59E0B);
+    }
+
+    public static void addRoutePoint(BlockPos pos, Minecraft mc) {
+        if (pos == null) return;
+        routePoints.add(pos);
+        String name = "Checkpoint #" + routePoints.size();
+        routePointNames.add(name);
+        if (mc.player != null && mc.level != null) {
+            mc.player.playSound(SoundEvents.NOTE_BLOCK_BELL.value(), 1.0f, 1.6f);
+            for (int i = 0; i < 15; i++) {
+                mc.level.addParticle(
+                        ParticleTypes.ENCHANT,
+                        pos.getX() + 0.5 + (Math.random() - 0.5) * 0.8,
+                        pos.getY() + 0.5 + Math.random() * 0.8,
+                        pos.getZ() + 0.5 + (Math.random() - 0.5) * 0.8,
+                        0, 0.05, 0
+                );
+            }
+        }
+        setStatus("Checkpoint #" + routePoints.size() + " añadido en X: " + pos.getX() + ", Y: " + pos.getY() + ", Z: " + pos.getZ(), 0xFF38BDF8);
     }
 
     public static void addSpawn(BlockPos pos, Minecraft mc) {
@@ -142,10 +185,7 @@ public class IncursionSetupSession {
                 );
             }
         }
-        WaypointHudRenderer.showHotbarNotification(
-                "§c✔ Spawn #" + spawnPoints.size() + " añadido en X: " + pos.getX() + ", Y: " + pos.getY() + ", Z: " + pos.getZ(),
-                0xFFEF4444
-        );
+        setStatus("Mob Spawn #" + spawnPoints.size() + " añadido en X: " + pos.getX() + ", Y: " + pos.getY() + ", Z: " + pos.getZ(), 0xFFEF4444);
     }
 
     public static void registerTargetedChest(Minecraft mc) {
@@ -155,10 +195,11 @@ public class IncursionSetupSession {
             if (mc.level != null && mc.level.getBlockState(target).getBlock() instanceof ChestBlock) {
                 if (savedChestPositions.contains(target)) {
                     savedChestPositions.remove(target);
+                    customChestLootMap.remove(target);
                     if (mc.player != null) {
                         mc.player.playSound(SoundEvents.CHEST_CLOSE, 1.0f, 0.9f);
                     }
-                    WaypointHudRenderer.showHotbarNotification("§c✕ Cofre desregistrado", 0xFFEF4444);
+                    setStatus("Cofre desregistrado", 0xFFEF4444);
                 } else {
                     savedChestPositions.add(target);
                     if (mc.player != null && mc.level != null) {
@@ -167,23 +208,59 @@ public class IncursionSetupSession {
                             mc.level.addParticle(ParticleTypes.HAPPY_VILLAGER, target.getX() + 0.5, target.getY() + 1.2, target.getZ() + 0.5, 0, 0.05, 0);
                         }
                     }
-                    WaypointHudRenderer.showHotbarNotification("§a✔ Cofre #" + savedChestPositions.size() + " registrado con éxito", 0xFF22C55E);
+                    String lootKey = com.misionesmod.client.MisionesModClient.EDIT_CHEST_LOOT_KEY != null ?
+                            com.misionesmod.client.MisionesModClient.EDIT_CHEST_LOOT_KEY.getTranslatedKeyMessage().getString() : "L";
+                    setStatus("Cofre #" + savedChestPositions.size() + " registrado ([" + lootKey + "] para Loot)", 0xFF22C55E);
                 }
                 return;
             }
         }
-        WaypointHudRenderer.showHotbarNotification("§7Apunta la mira directamente a un cofre para registrarlo", 0xFF94A3B8);
+        setStatus("Apunta la mira directamente a un cofre para registrarlo", 0xFF94A3B8);
+    }
+
+    public static void editTargetedChestLoot(Minecraft mc) {
+        if (mc == null) return;
+        if (mc.hitResult instanceof BlockHitResult bhr) {
+            BlockPos target = bhr.getBlockPos();
+            if (mc.level != null && mc.level.getBlockState(target).getBlock() instanceof ChestBlock) {
+                if (!savedChestPositions.contains(target)) {
+                    savedChestPositions.add(target);
+                }
+                List<ItemStack> currentLoot = customChestLootMap.getOrDefault(target, new ArrayList<>());
+                if (mc.gui != null) {
+                    mc.gui.setScreen(new LootEditorScreen(null, "chest_" + target.getX() + "_" + target.getZ(), currentLoot, savedItems -> {
+                        customChestLootMap.put(target, savedItems);
+                        setStatus("✔ Loot guardado para el cofre en " + target.toShortString(), 0xFF22C55E);
+                    }));
+                }
+                return;
+            }
+        }
+        setStatus("Apunta la mira a un cofre y presiona [L] para personalizar su Loot", 0xFF94A3B8);
+    }
+
+    public static void openMobSelector(Minecraft mc) {
+        if (mc.gui != null) {
+            mc.gui.setScreen(new MobSelectorScreen(null, savedMobs, mobs -> {
+                savedMobs.clear();
+                savedMobs.addAll(mobs);
+                setStatus("Mobs seleccionados: " + savedMobs.size() + " tipo(s)", 0xFF8B5CF6);
+            }));
+        }
     }
 
     public static void clearSpawns(Minecraft mc) {
         spawnPoints.clear();
+        routePoints.clear();
+        routePointNames.clear();
+        extractionPos = null;
+        roofPos = null;
+        savedChestPositions.clear();
+        customChestLootMap.clear();
         if (mc.player != null) {
             mc.player.playSound(SoundEvents.ANVIL_BREAK, 0.8f, 1.2f);
         }
-        WaypointHudRenderer.showHotbarNotification(
-                "§7Spawns de la incursión vaciados (0)",
-                0xFF94A3B8
-        );
+        setStatus("Toda la configuración de la incursión ha sido borrada", 0xFFEF4444);
     }
 
     public static void finishAndReopen(Minecraft mc) {
@@ -195,6 +272,16 @@ public class IncursionSetupSession {
                 parentScreen != null ? parentScreen.getParentScreen() : null,
                 existingMission
         );
+
+        List<BlockPos> customChestPositions = new ArrayList<>();
+        List<String> customChestLootPack = new ArrayList<>();
+        for (Map.Entry<BlockPos, List<ItemStack>> entry : customChestLootMap.entrySet()) {
+            if (!entry.getValue().isEmpty()) {
+                customChestPositions.add(entry.getKey());
+                customChestLootPack.add(Mission.serializeLootPack(entry.getValue()));
+            }
+        }
+
         screen.restoreFromSetupSession(
                 savedTitle,
                 savedDesc,
@@ -207,10 +294,32 @@ public class IncursionSetupSession {
                 extractionPos,
                 roofPos,
                 spawnPoints,
-                savedChestPositions
+                savedChestPositions,
+                routePoints,
+                routePointNames,
+                customChestPositions,
+                customChestLootPack
         );
         if (mc.gui != null) {
             mc.gui.setScreen(screen);
         }
+    }
+
+    public static void printHelpGuide(Minecraft mc) {
+        if (mc.player == null) return;
+        mc.player.playSound(SoundEvents.BOOK_PAGE_TURN, 0.8f, 1.2f);
+        mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§6§l╔═══════════════════════════════════════╗"));
+        mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§6§l║      §e§lGUÍA DE CONTROLES (ADMIN)      §6§l║"));
+        mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§6§l╠═══════════════════════════════════════╝"));
+        mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§6║ §a[G] §fInicio: §7Fija la entrada donde se esperará al equipo."));
+        mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§6║ §b[H] §fCheckpoint: §7Añade checkpoints a lo largo del recorrido."));
+        mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§6║ §e[E] §fEscape: §7Marca la salida final donde termina la misión."));
+        mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§6║ §c[J] §fMob Spawn: §7Añade puntos donde aparecerán los enemigos."));
+        mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§6║ §6[C] §fCofre: §7Apunta a un cofre para incluirlo en la misión."));
+        mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§6║ §d[L] §fLoot: §7Apunta a un cofre para abrir su editor de botín."));
+        mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§6║ §5[V] §fMobs: §7Abre el selector de criaturas (vainilla y mods)."));
+        mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§6║ §4[K] §fLimpiar: §7Borra absolutamente toda la configuración."));
+        mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§6║ §a[M] §fListo: §7Guarda la configuración y vuelve al menú."));
+        mc.player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§6§l╚═══════════════════════════════════════╝"));
     }
 }

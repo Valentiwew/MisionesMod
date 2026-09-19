@@ -35,8 +35,10 @@ import java.lang.reflect.Type;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class MissionManager {
@@ -139,12 +141,37 @@ public class MissionManager {
         return removed;
     }
 
+    private static final Map<String, Integer> playerBaselineCraftStats = new HashMap<>();
+
+    public static int getCraftedCount(Mission mission, ServerPlayer player) {
+        if (!"CRAFTEO".equalsIgnoreCase(mission.getObjectiveType())) return 0;
+        try {
+            Identifier id = Identifier.parse(mission.getRequiredItemId());
+            Item item = BuiltInRegistries.ITEM.getValue(id);
+            if (item == null || item == Items.AIR) return 0;
+            int totalCrafted = player.getStats().getValue(net.minecraft.stats.Stats.ITEM_CRAFTED.get(item));
+            String key = mission.getId() + "_" + player.getUUID();
+            if (!playerBaselineCraftStats.containsKey(key)) {
+                playerBaselineCraftStats.put(key, totalCrafted);
+                return 0;
+            }
+            return Math.max(0, totalCrafted - playerBaselineCraftStats.get(key));
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
     public static synchronized boolean completeMission(String id, ServerPlayer player) {
         Mission mission = getMission(id);
         if (mission != null && !mission.isCompletedBy(player.getUUID())) {
             // 1. Validar objetivo según su tipo
             String objType = mission.getObjectiveType();
-            if ("CRAFTEO".equalsIgnoreCase(objType) || "OBTENCION".equalsIgnoreCase(objType)) {
+            if ("CRAFTEO".equalsIgnoreCase(objType)) {
+                int crafted = getCraftedCount(mission, player);
+                if (crafted < mission.getRequiredCount()) {
+                    return false;
+                }
+            } else if ("OBTENCION".equalsIgnoreCase(objType)) {
                 String reqId = mission.getRequiredItemId();
                 int reqCount = mission.getRequiredCount();
                 int found = 0;
@@ -204,7 +231,9 @@ public class MissionManager {
                     1.0f, 1.0f
             );
 
-            ServerPlayNetworking.send(player, new ModPackets.NotificationPayload("§6§l¡Misión Cumplida! §a¡Has completado " + mission.getTitle() + "!", 0xFF22C55E));
+            if (!"INCURSION".equalsIgnoreCase(mission.getObjectiveType())) {
+                ServerPlayNetworking.send(player, new ModPackets.NotificationPayload("§6§l¡Misión Cumplida! §a¡Has completado " + mission.getTitle() + "!", 0xFF22C55E));
+            }
 
             if (player.level().getServer() != null) {
                 syncToAll(player.level().getServer());
@@ -229,7 +258,13 @@ public class MissionManager {
             for (Mission m : currentMissions) {
                 if (m.isCompletedBy(player.getUUID())) continue;
                 String objType = m.getObjectiveType();
-                if ("CRAFTEO".equalsIgnoreCase(objType) || "OBTENCION".equalsIgnoreCase(objType)) {
+                if ("CRAFTEO".equalsIgnoreCase(objType)) {
+                    int crafted = getCraftedCount(m, player);
+                    if (crafted >= m.getRequiredCount()) {
+                        completeMission(m.getId(), player);
+                        break;
+                    }
+                } else if ("OBTENCION".equalsIgnoreCase(objType)) {
                     String reqId = m.getRequiredItemId();
                     int reqCount = m.getRequiredCount();
                     int found = 0;

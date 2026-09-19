@@ -106,6 +106,10 @@ public class IncursionManager {
         public void destroyRemainingChests(ServerLevel level) {
             if (!activeChests.isEmpty() && level != null) {
                 for (BlockPos cp : new ArrayList<>(activeChests)) {
+                    if (level.getBlockEntity(cp) instanceof ChestBlockEntity chest) {
+                        Containers.dropContents(level, cp, chest);
+                        chest.clearContent();
+                    }
                     level.setBlockAndUpdate(cp, Blocks.AIR.defaultBlockState());
                     level.playSound(null, cp.getX() + 0.5, cp.getY() + 0.5, cp.getZ() + 0.5, SoundEvents.GENERIC_EXPLODE, SoundSource.BLOCKS, 1.2f, 1.2f);
                     level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, cp.getX() + 0.5, cp.getY() + 0.8, cp.getZ() + 0.5, 25, 0.3, 0.6, 0.3, 0.03);
@@ -808,6 +812,10 @@ public class IncursionManager {
                         session.lootingTicks--;
                         if (session.lootingTicks == 0 && !session.activeChests.isEmpty()) {
                             for (BlockPos cp : new ArrayList<>(session.activeChests)) {
+                                if (level.getBlockEntity(cp) instanceof ChestBlockEntity chest) {
+                                    Containers.dropContents(level, cp, chest);
+                                    chest.clearContent();
+                                }
                                 level.setBlockAndUpdate(cp, Blocks.AIR.defaultBlockState());
                                 level.playSound(null, cp.getX() + 0.5, cp.getY() + 0.5, cp.getZ() + 0.5, SoundEvents.GENERIC_EXPLODE, SoundSource.BLOCKS, 1.2f, 1.2f);
                                 level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, cp.getX() + 0.5, cp.getY() + 0.8, cp.getZ() + 0.5, 25, 0.3, 0.6, 0.3, 0.03);

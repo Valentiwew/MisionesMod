@@ -668,10 +668,14 @@ public class WaypointHudRenderer implements HudElement {
                 continue;
             }
 
-            // Para misiones de incursión, no mostrar en esta tarjeta de esquina mientras está activa
-            // (para no repetir con la barra superior de oleadas), solo mostrar al completarse
+            // Para misiones de incursión:
+            // Si la misión ya inició (incursionStatus.active), no mostrar en esta tarjeta
+            // para no duplicar con la barra superior de oleadas.
+            // Pero antes de iniciar, SÍ mostrar para indicarle al jugador la ubicación y guía con la flecha.
             if ("INCURSION".equalsIgnoreCase(m.getObjectiveType())) {
-                continue;
+                if (incursionStatus.active) {
+                    continue;
+                }
             }
 
             // Misión activa
@@ -726,8 +730,9 @@ public class WaypointHudRenderer implements HudElement {
                         }
                     } catch (Exception ignored) {}
                 }
-            } else if ("EXPLORACION".equalsIgnoreCase(obj) && m.getTargetPos() != null) {
-                lines.add("  §f" + arrow + " §7Destino: §fX:" + m.getTargetPos().getX() + " Z:" + m.getTargetPos().getZ() + " §a(" + dist + "m)");
+            } else if (("EXPLORACION".equalsIgnoreCase(obj) || "INCURSION".equalsIgnoreCase(obj)) && m.getTargetPos() != null) {
+                String label = "INCURSION".equalsIgnoreCase(obj) ? "Incursión: " : "Destino: ";
+                lines.add("  §f" + arrow + " §7" + label + "§fX:" + m.getTargetPos().getX() + " Z:" + m.getTargetPos().getZ() + " §a(" + dist + "m)");
                 lineColors.add(0xFF94A3B8);
             }
         }

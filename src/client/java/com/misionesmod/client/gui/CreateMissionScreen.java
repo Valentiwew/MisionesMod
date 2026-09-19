@@ -55,6 +55,7 @@ public class CreateMissionScreen extends Screen {
 
     private Button incursionWorldSetupBtn;
     private Button mobSelectorBtn;
+    private Button incursionWavesBtn;
 
     private static final String[] TIERS = {"comun", "raro", "epico", "legendario", "personalizado"};
     private static final String[] TIER_NAMES = {"Común", "Raro", "Épico", "Legendario", "Personalizado"};
@@ -126,6 +127,9 @@ public class CreateMissionScreen extends Screen {
             }
             if (existingMission.getCustomChestLootPack() != null) {
                 this.incursionCustomChestLootPack.addAll(existingMission.getCustomChestLootPack());
+            }
+            if (existingMission.getTotalWaves() > 0) {
+                this.incursionWaves = existingMission.getTotalWaves();
             }
 
             List<String> chestIds = existingMission.getBuildingChestLootIds();
@@ -342,6 +346,15 @@ public class CreateMissionScreen extends Screen {
         ).bounds(fieldX + 118, panelY + 114, 112, 20).build();
         this.addRenderableWidget(mobSelectorBtn);
 
+        incursionWavesBtn = Button.builder(
+                Component.literal("§6⚔ Oleadas: §e" + incursionWaves),
+                b -> {
+                    incursionWaves = (incursionWaves % 10) + 1;
+                    incursionWavesBtn.setMessage(Component.literal("§6⚔ Oleadas: §e" + incursionWaves));
+                }
+        ).bounds(fieldX, panelY + 138, fieldWidth, 20).build();
+        this.addRenderableWidget(incursionWavesBtn);
+
         // 5. Selector de Tier de Recompensa
         tierButton = Button.builder(
                 Component.literal("Tipo de Drop: §e" + TIER_NAMES[selectedTierIndex]),
@@ -404,6 +417,10 @@ public class CreateMissionScreen extends Screen {
         if (mobSelectorBtn != null) {
             mobSelectorBtn.visible = isIncursion;
             mobSelectorBtn.active = isIncursion;
+        }
+        if (incursionWavesBtn != null) {
+            incursionWavesBtn.visible = isIncursion;
+            incursionWavesBtn.active = isIncursion;
         }
 
         if (tierButton != null) {

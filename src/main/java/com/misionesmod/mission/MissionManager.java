@@ -266,9 +266,7 @@ public class MissionManager {
                     1.0f, 1.0f
             );
 
-            if (!"INCURSION".equalsIgnoreCase(mission.getObjectiveType())) {
-                ServerPlayNetworking.send(player, new ModPackets.NotificationPayload("§6§l¡Misión Cumplida! §a¡Has completado " + mission.getTitle() + "!", 0xFF22C55E));
-            }
+
 
             if (player.level().getServer() != null) {
                 syncToAll(player.level().getServer());

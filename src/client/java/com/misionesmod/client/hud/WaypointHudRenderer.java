@@ -17,9 +17,13 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
+import net.minecraft.sounds.SoundEvents;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 public class WaypointHudRenderer implements HudElement {
     public static class Waypoint {
@@ -562,8 +566,7 @@ public class WaypointHudRenderer implements HudElement {
 
         List<String> lines = new ArrayList<>();
         List<Integer> lineColors = new ArrayList<>();
-        ItemStack itemToDraw = ItemStack.EMPTY;
-        int itemLineIndex = -1;
+        Map<Integer, ItemStack> lineItemIcons = new HashMap<>();
 
         // 1. Drops activos
         synchronized (WaypointHudRenderer.class) {
@@ -593,12 +596,22 @@ public class WaypointHudRenderer implements HudElement {
 
         // 2. Misiones y animación de estado
         for (Mission m : MisionesModClient.clientMissions) {
-            MissionAnimState anim = missionAnimStates.computeIfAbsent(m.getId(), k -> new MissionAnimState());
+            MissionAnimState anim = missionAnimStates.computeIfAbsent(m.getId(), k -> {
+                MissionAnimState s = new MissionAnimState();
+                if (m.isCompleted()) {
+                    s.completed = true;
+                    s.completedTime = 0; // Si ya estaba completada al entrar, no reproducir animación
+                }
+                return s;
+            });
 
             if (m.isCompleted()) {
                 if (!anim.completed) {
                     anim.completed = true;
                     anim.completedTime = now;
+                    if (player != null) {
+                        player.playSound(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
+                    }
                 }
                 // Si ya pasaron 3.5 segundos tras completarla, se remueve
                 if (now - anim.completedTime > 3500) {
@@ -606,7 +619,7 @@ public class WaypointHudRenderer implements HudElement {
                 }
                 lines.add("§a✔ " + m.getTitle());
                 lineColors.add(0xFF22C55E);
-                lines.add("  §a¡Has completado la misión!");
+                lines.add("  §fha sido completada");
                 lineColors.add(0xFF86EFAC);
                 continue;
             }
@@ -647,10 +660,14 @@ public class WaypointHudRenderer implements HudElement {
             if ("INCURSION".equalsIgnoreCase(obj)) {
                 if (incursionStatus.active && m.getId().equalsIgnoreCase(incursionStatus.missionId)) {
                     if (incursionStatus.isEscapePhase) {
-                        lines.add("  §e¡Oleadas completadas, busca la salida!");
+                        lines.add("  §e¡Evacúen inmediatamente hacia la salida!");
                         lineColors.add(0xFFF59E0B);
                         lines.add("  §7Supervivientes: §a" + incursionStatus.alivePlayers + "/" + incursionStatus.totalPlayers);
                         lineColors.add(0xFFE2E8F0);
+                        if (incursionStatus.chestsCount > 0) {
+                            lines.add("  §7Cofres en la estructura: §e" + incursionStatus.chestsCount);
+                            lineColors.add(0xFFCBD5E1);
+                        }
                     } else if (incursionStatus.isLootingPhase) {
                         lines.add("  §6¡Fase de Botín! Saquen los cofres §e(" + incursionStatus.lootingSeconds + "s)");
                         lineColors.add(0xFFF59E0B);
@@ -665,20 +682,10 @@ public class WaypointHudRenderer implements HudElement {
                         }
                         lines.add("  §7Oleada: §c" + incursionStatus.currentWave + "/" + incursionStatus.totalWaves + " §7(Mobs: §e" + incursionStatus.remainingEnemies + "§7)");
                         lineColors.add(0xFFCBD5E1);
-                        if (incursionStatus.chestsCount > 0) {
-                            lines.add("  §7Cofres en la estructura: §e" + incursionStatus.chestsCount);
-                            lineColors.add(0xFFCBD5E1);
-                        }
                     }
                 } else if (m.getTargetPos() != null) {
                     lines.add("  §f" + arrow + " §7Inicio: §fX:" + m.getTargetPos().getX() + " Z:" + m.getTargetPos().getZ() + " §a(" + dist + "m)");
                     lineColors.add(0xFF94A3B8);
-                    int totalChests = (m.getChestPoints() != null ? m.getChestPoints().size() : 0) +
-                            (m.getCustomChestPositions() != null ? m.getCustomChestPositions().size() : 0);
-                    if (totalChests > 0) {
-                        lines.add("  §7Cofres en la estructura: §e" + totalChests);
-                        lineColors.add(0xFFCBD5E1);
-                    }
                 }
             } else if ("OBTENCION".equalsIgnoreCase(obj) || "CRAFTEO".equalsIgnoreCase(obj) || "COCINAR".equalsIgnoreCase(obj)) {
                 int found = 0;
@@ -706,8 +713,7 @@ public class WaypointHudRenderer implements HudElement {
                         Identifier itemId = Identifier.parse(reqId);
                         Item item = BuiltInRegistries.ITEM.getValue(itemId);
                         if (item != null && item != net.minecraft.world.item.Items.AIR) {
-                            itemToDraw = new ItemStack(item);
-                            itemLineIndex = lines.size() - 1;
+                            lineItemIcons.put(lines.size() - 1, new ItemStack(item));
                         }
                     } catch (Exception ignored) {}
                 }
@@ -723,9 +729,10 @@ public class WaypointHudRenderer implements HudElement {
         for (String l : lines) {
             maxTextW = Math.max(maxTextW, font.width(l));
         }
-        int cardW = maxTextW + 14 + (!itemToDraw.isEmpty() ? 22 : 0);
+        boolean hasAnyIcons = !lineItemIcons.isEmpty();
+        int cardW = maxTextW + 14 + (hasAnyIcons ? 22 : 0);
         int cardH = lines.size() * 11 + 10;
-        if (!itemToDraw.isEmpty()) {
+        if (hasAnyIcons) {
             cardH = Math.max(cardH, 28);
         }
 
@@ -761,10 +768,11 @@ public class WaypointHudRenderer implements HudElement {
         int lineY = posY + 5;
         for (int i = 0; i < lines.size(); i++) {
             graphics.text(font, Component.literal(lines.get(i)), posX + 6, lineY, lineColors.get(i));
-            if (!itemToDraw.isEmpty() && i == itemLineIndex) {
+            ItemStack iconStack = lineItemIcons.get(i);
+            if (iconStack != null && !iconStack.isEmpty()) {
                 int itemX = posX + cardW - 19;
                 int itemY = lineY - 4;
-                graphics.item(itemToDraw, itemX, itemY);
+                graphics.item(iconStack, itemX, itemY);
             }
             lineY += 11;
         }

@@ -585,9 +585,38 @@ public class MisionesScreen extends Screen {
                         graphics.setTooltipForNextFrame(font, reqStack, mouseX, mouseY);
                     }
                 }
-                graphics.text(font, Component.literal(isCompleted ? "§8(Obtenido)" : "§7(Consigue este ítem)"), itemBoxX + 24, itemBoxY + 5, 0xFF888888);
+                graphics.text(font, Component.literal(isCompleted ? "§8(Obtenido)" : (isCook ? "§7(Cocina este ítem)" : "§7(Consigue este ítem)")), itemBoxX + 24, itemBoxY + 5, 0xFF888888);
 
-                nextSectionY = itemBoxY + 24;
+                if (isCook) {
+                    int guideY = itemBoxY + 22;
+                    graphics.text(font, Component.literal("§6🔥 Cómo cocinarlo:"), rightX, guideY, 0xFFF59E0B);
+                    graphics.text(font, Component.literal("§7Fundir en: §fHorno, Ahumadero o Alto Horno"), rightX, guideY + 11, 0xFFCBD5E1);
+
+                    int furnaceX = rightX;
+                    int furnaceY = guideY + 23;
+                    graphics.fill(furnaceX, furnaceY, furnaceX + 18, furnaceY + 18, isCompleted ? 0x8805070A : 0xAA0F172A);
+                    graphics.outline(furnaceX, furnaceY, 18, 18, isCompleted ? 0xFF334155 : 0xFFF59E0B);
+                    graphics.item(new ItemStack(Items.FURNACE), furnaceX + 1, furnaceY + 1);
+                    if (mouseX >= furnaceX && mouseX < furnaceX + 18 && mouseY >= furnaceY && mouseY < furnaceY + 18) {
+                        graphics.setTooltipForNextFrame(font, new ItemStack(Items.FURNACE), mouseX, mouseY);
+                    }
+
+                    int arrowX = furnaceX + 24;
+                    graphics.text(font, Component.literal(isCompleted ? "§8➔" : "§6➔"), arrowX, furnaceY + 5, 0xFFFFFFFF);
+
+                    int outX = arrowX + 14;
+                    graphics.fill(outX, furnaceY, outX + 18, furnaceY + 18, isCompleted ? 0x8805070A : 0xAA0F172A);
+                    graphics.outline(outX, furnaceY, 18, 18, isCompleted ? 0xFF334155 : 0xFF22C55E);
+                    if (!reqStack.isEmpty()) {
+                        graphics.item(reqStack, outX + 1, furnaceY + 1);
+                        if (mouseX >= outX && mouseX < outX + 18 && mouseY >= furnaceY && mouseY < furnaceY + 18) {
+                            graphics.setTooltipForNextFrame(font, reqStack, mouseX, mouseY);
+                        }
+                    }
+                    nextSectionY = furnaceY + 24;
+                } else {
+                    nextSectionY = itemBoxY + 24;
+                }
             } else if ("EXPLORACION".equalsIgnoreCase(objType)) {
                 if (current.getTargetPos() != null) {
                     BlockPos pos = current.getTargetPos();

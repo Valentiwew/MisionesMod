@@ -55,6 +55,10 @@ task jar263(type: Jar) {
 	from sourceSets.main.output
 	from sourceSets.client.output
 
+	manifest {
+		from jar.manifest
+	}
+
 	// Ensure fabric.mod.json in jar263 targets ~26.3
 	filesMatching("fabric.mod.json") {
 		filter { line ->

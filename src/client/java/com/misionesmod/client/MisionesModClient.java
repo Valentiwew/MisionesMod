@@ -26,84 +26,72 @@ public class MisionesModClient implements ClientModInitializer {
 
     public static final KeyMapping OPEN_MENU_KEY = KeyMappingHelper.registerKeyMapping(new KeyMapping(
             "key.misionesmod.open_menu",
-            InputConstants.Type.KEYSYM,
             InputConstants.KEY_M,
             MOD_CATEGORY
     ));
 
     public static final KeyMapping SET_EXTRACTION_KEY = KeyMappingHelper.registerKeyMapping(new KeyMapping(
             "key.misionesmod.incursion.extraction",
-            InputConstants.Type.KEYSYM,
             InputConstants.KEY_G,
             MOD_CATEGORY
     ));
 
     public static final KeyMapping ADD_ROUTE_KEY = KeyMappingHelper.registerKeyMapping(new KeyMapping(
             "key.misionesmod.incursion.route",
-            InputConstants.Type.KEYSYM,
             InputConstants.KEY_H,
             MOD_CATEGORY
     ));
 
     public static final KeyMapping SET_ESCAPE_KEY = KeyMappingHelper.registerKeyMapping(new KeyMapping(
             "key.misionesmod.incursion.escape",
-            InputConstants.Type.KEYSYM,
             InputConstants.KEY_E,
             MOD_CATEGORY
     ));
 
     public static final KeyMapping ADD_SPAWN_KEY = KeyMappingHelper.registerKeyMapping(new KeyMapping(
             "key.misionesmod.incursion.spawn",
-            InputConstants.Type.KEYSYM,
             InputConstants.KEY_J,
             MOD_CATEGORY
     ));
 
     public static final KeyMapping CLEAR_SPAWNS_KEY = KeyMappingHelper.registerKeyMapping(new KeyMapping(
             "key.misionesmod.incursion.clear_spawns",
-            InputConstants.Type.KEYSYM,
             InputConstants.KEY_K,
             MOD_CATEGORY
     ));
 
     public static final KeyMapping REGISTER_CHEST_KEY = KeyMappingHelper.registerKeyMapping(new KeyMapping(
             "key.misionesmod.incursion.register_chest",
-            InputConstants.Type.KEYSYM,
             InputConstants.KEY_C,
             MOD_CATEGORY
     ));
 
     public static final KeyMapping EDIT_CHEST_LOOT_KEY = KeyMappingHelper.registerKeyMapping(new KeyMapping(
             "key.misionesmod.incursion.edit_chest_loot",
-            InputConstants.Type.KEYSYM,
             InputConstants.KEY_L,
             MOD_CATEGORY
     ));
 
     public static final KeyMapping HELP_SETUP_KEY = KeyMappingHelper.registerKeyMapping(new KeyMapping(
             "key.misionesmod.incursion.help",
-            InputConstants.Type.KEYSYM,
             InputConstants.KEY_I,
             MOD_CATEGORY
     ));
 
     public static final KeyMapping SELECT_MOBS_KEY = KeyMappingHelper.registerKeyMapping(new KeyMapping(
             "key.misionesmod.incursion.select_mobs",
-            InputConstants.Type.KEYSYM,
             InputConstants.KEY_V,
             MOD_CATEGORY
     ));
 
     public static final KeyMapping SET_ENTRY_GATE_KEY = KeyMappingHelper.registerKeyMapping(new KeyMapping(
             "key.misionesmod.incursion.entry_gate",
-            InputConstants.Type.KEYSYM,
             InputConstants.KEY_B,
             MOD_CATEGORY
     ));
 
     public static final KeyMapping SET_FINAL_GATE_KEY = KeyMappingHelper.registerKeyMapping(new KeyMapping(
             "key.misionesmod.incursion.final_gate",
-            InputConstants.Type.KEYSYM,
             InputConstants.KEY_N,
             MOD_CATEGORY
     ));

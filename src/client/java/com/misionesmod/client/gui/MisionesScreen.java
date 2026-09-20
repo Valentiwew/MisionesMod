@@ -24,6 +24,7 @@ import net.minecraft.world.item.crafting.display.RecipeDisplay;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.ShapedCraftingRecipeDisplay;
 import net.minecraft.world.item.crafting.display.ShapelessCraftingRecipeDisplay;
+import net.minecraft.world.item.crafting.display.FurnaceRecipeDisplay;
 import net.minecraft.world.item.crafting.display.SlotDisplay;
 import net.minecraft.world.item.crafting.display.SlotDisplayContext;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
@@ -303,6 +304,76 @@ public class MisionesScreen extends Screen {
         return grid;
     }
 
+    private ItemStack[] resolveFurnaceRecipe(Item targetItem, Player player) {
+        ItemStack[] result = new ItemStack[] { ItemStack.EMPTY, new ItemStack(Items.COAL), new ItemStack(Items.FURNACE) };
+        if (targetItem == null || targetItem == Items.AIR) {
+            return result;
+        }
+
+        try {
+            if (player != null && player.level() != null) {
+                ContextMap context = SlotDisplayContext.fromLevel(player.level());
+                if (player instanceof net.minecraft.client.player.LocalPlayer localPlayer) {
+                    var recipeBook = localPlayer.getRecipeBook();
+                    if (recipeBook != null) {
+                        for (RecipeCollection col : recipeBook.getCollections()) {
+                            for (RecipeDisplayEntry entry : col.getRecipes()) {
+                                RecipeDisplay display = entry.display();
+                                if (display instanceof FurnaceRecipeDisplay furnaceDisplay) {
+                                    ItemStack resStack = furnaceDisplay.result().resolveForFirstStack(context);
+                                    if (resStack.is(targetItem)) {
+                                        ItemStack ingStack = furnaceDisplay.ingredient().resolveForFirstStack(context);
+                                        ItemStack fuelStack = furnaceDisplay.fuel().resolveForFirstStack(context);
+                                        ItemStack stationStack = furnaceDisplay.craftingStation().resolveForFirstStack(context);
+
+                                        if (!ingStack.isEmpty()) result[0] = ingStack;
+                                        if (!fuelStack.isEmpty()) result[1] = fuelStack;
+                                        if (!stationStack.isEmpty()) result[2] = stationStack;
+                                        return result;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        if (result[0].isEmpty()) {
+            Item fallback = getCommonSmeltIngredient(targetItem);
+            if (fallback != null && fallback != Items.AIR) {
+                result[0] = new ItemStack(fallback);
+            }
+        }
+
+        return result;
+    }
+
+    private Item getCommonSmeltIngredient(Item target) {
+        if (target == null) return Items.AIR;
+        if (target == Items.IRON_INGOT) return Items.RAW_IRON;
+        if (target == Items.GOLD_INGOT) return Items.RAW_GOLD;
+        if (target == Items.COPPER_INGOT) return Items.RAW_COPPER;
+        if (target == Items.COOKED_BEEF) return Items.BEEF;
+        if (target == Items.COOKED_PORKCHOP) return Items.PORKCHOP;
+        if (target == Items.COOKED_MUTTON) return Items.MUTTON;
+        if (target == Items.COOKED_CHICKEN) return Items.CHICKEN;
+        if (target == Items.COOKED_RABBIT) return Items.RABBIT;
+        if (target == Items.COOKED_COD) return Items.COD;
+        if (target == Items.COOKED_SALMON) return Items.SALMON;
+        if (target == Items.BAKED_POTATO) return Items.POTATO;
+        if (target == Items.DRIED_KELP) return Items.KELP;
+        if (target == Items.STONE) return Items.COBBLESTONE;
+        if (target == Items.SMOOTH_STONE) return Items.STONE;
+        if (target == Items.DEEPSLATE) return Items.COBBLED_DEEPSLATE;
+        if (target == Items.GLASS) return Items.SAND;
+        if (target == Items.BRICK) return Items.CLAY_BALL;
+        if (target == Items.TERRACOTTA) return Items.CLAY;
+        if (target == Items.CHARCOAL) return Items.OAK_LOG;
+        if (target == Items.NETHERITE_SCRAP) return Items.ANCIENT_DEBRIS;
+        return Items.AIR;
+    }
+
     private void updateActionButtons() {
         List<Mission> missions = getDisplayedMissions();
         boolean hasSelection = !missions.isEmpty() && selectedMissionIndex < missions.size();
@@ -537,16 +608,14 @@ public class MisionesScreen extends Screen {
                 }
 
                 nextSectionY = craftY + (3 * slotSize) + 5;
-            } else if ("OBTENCION".equalsIgnoreCase(objType) || "COCINAR".equalsIgnoreCase(objType)) {
+            } else if ("OBTENCION".equalsIgnoreCase(objType)) {
                 int req = current.getRequiredCount();
                 String itemName = current.getItemDisplayName();
-                boolean isCook = "COCINAR".equalsIgnoreCase(objType);
-                String actionVerb = isCook ? "Cocinar " : "Obtener ";
                 Component objComp;
                 if (isCompleted) {
-                    objComp = Component.literal("§7Objetivo: " + actionVerb + req + " de " + itemName);
+                    objComp = Component.literal("§7Objetivo: Obtener " + req + " de " + itemName);
                 } else {
-                    objComp = Component.literal("§bObjetivo: §f" + actionVerb + "§e" + req + " de " + itemName);
+                    objComp = Component.literal("§bObjetivo: §fObtener §e" + req + " de " + itemName);
                 }
                 graphics.textWithWordWrap(font, objComp, rightX, objY, rightWidth - 6, isCompleted ? 0xFF888888 : 0xFFFFFFFF);
                 int objLines = font.split(objComp, rightWidth - 6).size();
@@ -555,9 +624,7 @@ public class MisionesScreen extends Screen {
                 int itemBoxY;
                 if (!isCompleted) {
                     int found = 0;
-                    if (isCook) {
-                        found = current.getCurrentProgress();
-                    } else if (player != null) {
+                    if (player != null) {
                         String reqId = current.getRequiredItemId();
                         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
                             ItemStack s = player.getInventory().getItem(i);
@@ -567,7 +634,7 @@ public class MisionesScreen extends Screen {
                         }
                     }
                     String invColor = (found >= req ? "§a" : "§c");
-                    graphics.text(font, Component.literal("§fProgreso: " + invColor + found + " / " + req), rightX, afterObjY, 0xFFFFFFFF);
+                    graphics.text(font, Component.literal("§fProgreso en inventario: " + invColor + found + " / " + req), rightX, afterObjY, 0xFFFFFFFF);
                     itemBoxY = afterObjY + 16;
                 } else {
                     itemBoxY = afterObjY + 8;
@@ -585,38 +652,110 @@ public class MisionesScreen extends Screen {
                         graphics.setTooltipForNextFrame(font, reqStack, mouseX, mouseY);
                     }
                 }
-                graphics.text(font, Component.literal(isCompleted ? "§8(Obtenido)" : (isCook ? "§7(Cocina este ítem)" : "§7(Consigue este ítem)")), itemBoxX + 24, itemBoxY + 5, 0xFF888888);
-
-                if (isCook) {
-                    int guideY = itemBoxY + 22;
-                    graphics.text(font, Component.literal("§6🔥 Cómo cocinarlo:"), rightX, guideY, 0xFFF59E0B);
-                    graphics.text(font, Component.literal("§7Fundir en: §fHorno, Ahumadero o Alto Horno"), rightX, guideY + 11, 0xFFCBD5E1);
-
-                    int furnaceX = rightX;
-                    int furnaceY = guideY + 23;
-                    graphics.fill(furnaceX, furnaceY, furnaceX + 18, furnaceY + 18, isCompleted ? 0x8805070A : 0xAA0F172A);
-                    graphics.outline(furnaceX, furnaceY, 18, 18, isCompleted ? 0xFF334155 : 0xFFF59E0B);
-                    graphics.item(new ItemStack(Items.FURNACE), furnaceX + 1, furnaceY + 1);
-                    if (mouseX >= furnaceX && mouseX < furnaceX + 18 && mouseY >= furnaceY && mouseY < furnaceY + 18) {
-                        graphics.setTooltipForNextFrame(font, new ItemStack(Items.FURNACE), mouseX, mouseY);
-                    }
-
-                    int arrowX = furnaceX + 24;
-                    graphics.text(font, Component.literal(isCompleted ? "§8➔" : "§6➔"), arrowX, furnaceY + 5, 0xFFFFFFFF);
-
-                    int outX = arrowX + 14;
-                    graphics.fill(outX, furnaceY, outX + 18, furnaceY + 18, isCompleted ? 0x8805070A : 0xAA0F172A);
-                    graphics.outline(outX, furnaceY, 18, 18, isCompleted ? 0xFF334155 : 0xFF22C55E);
-                    if (!reqStack.isEmpty()) {
-                        graphics.item(reqStack, outX + 1, furnaceY + 1);
-                        if (mouseX >= outX && mouseX < outX + 18 && mouseY >= furnaceY && mouseY < furnaceY + 18) {
-                            graphics.setTooltipForNextFrame(font, reqStack, mouseX, mouseY);
-                        }
-                    }
-                    nextSectionY = furnaceY + 24;
+                graphics.text(font, Component.literal(isCompleted ? "§8(Obtenido)" : "§7(Consigue este ítem y mantenlo en tu inventario)"), itemBoxX + 24, itemBoxY + 5, 0xFF888888);
+                nextSectionY = itemBoxY + 24;
+            } else if ("COCINAR".equalsIgnoreCase(objType)) {
+                int req = current.getRequiredCount();
+                String itemName = current.getItemDisplayName();
+                Component objComp;
+                if (isCompleted) {
+                    objComp = Component.literal("§7Objetivo: Cocinar " + req + " de " + itemName);
                 } else {
-                    nextSectionY = itemBoxY + 24;
+                    objComp = Component.literal("§bObjetivo: §fCocinar §e" + req + " de " + itemName);
                 }
+                graphics.textWithWordWrap(font, objComp, rightX, objY, rightWidth - 6, isCompleted ? 0xFF888888 : 0xFFFFFFFF);
+                int objLines = font.split(objComp, rightWidth - 6).size();
+                int afterObjY = objY + (objLines * 9) + 3;
+
+                int found = current.getCurrentProgress();
+                String invColor = (found >= req ? "§a" : "§c");
+                graphics.text(font, Component.literal("§fCocinado y retirado: " + invColor + found + " / " + req), rightX, afterObjY, 0xFFFFFFFF);
+
+                Item targetItem = BuiltInRegistries.ITEM.getValue(Identifier.tryParse(current.getRequiredItemId()));
+                ItemStack[] furnaceRecipe = resolveFurnaceRecipe(targetItem, player);
+                ItemStack rawIngredient = furnaceRecipe[0];
+                ItemStack fuelItem = furnaceRecipe[1];
+                ItemStack resultStack = (targetItem != null && targetItem != Items.AIR) ? new ItemStack(targetItem, req) : ItemStack.EMPTY;
+
+                int guideY = afterObjY + 14;
+                graphics.text(font, Component.literal("§6🔥 Cómo cocinarlo:"), rightX, guideY, 0xFFF59E0B);
+
+                // Caja visual con aspecto de Horno
+                int fBoxX = rightX;
+                int fBoxY = guideY + 11;
+                int fBoxW = rightWidth - 8;
+                int fBoxH = 50;
+                graphics.fill(fBoxX, fBoxY, fBoxX + fBoxW, fBoxY + fBoxH, isCompleted ? 0x8805070A : 0xAA0A0F1D);
+                graphics.outline(fBoxX, fBoxY, fBoxW, fBoxH, isCompleted ? 0xFF334155 : 0xFF475569);
+
+                // Ranura de entrada (Ingrediente Crudo)
+                int inSlotX = fBoxX + 10;
+                int inSlotY = fBoxY + 4;
+                graphics.fill(inSlotX, inSlotY, inSlotX + 18, inSlotY + 18, 0xAA0F172A);
+                graphics.outline(inSlotX, inSlotY, 18, 18, isCompleted ? 0xFF334155 : 0xFF38BDF8);
+                if (!rawIngredient.isEmpty()) {
+                    graphics.item(rawIngredient, inSlotX + 1, inSlotY + 1);
+                    if (mouseX >= inSlotX && mouseX < inSlotX + 18 && mouseY >= inSlotY && mouseY < inSlotY + 18) {
+                        graphics.setTooltipForNextFrame(font, rawIngredient, mouseX, mouseY);
+                    }
+                }
+
+                // Fuego central
+                int flameX = inSlotX + 5;
+                int flameY = inSlotY + 18;
+                graphics.text(font, Component.literal("§6🔥"), flameX, flameY, 0xFFF59E0B);
+
+                // Ranura de combustible (Carbón)
+                int fuelSlotX = inSlotX;
+                int fuelSlotY = inSlotY + 28;
+                graphics.fill(fuelSlotX, fuelSlotY, fuelSlotX + 18, fuelSlotY + 18, 0xAA0F172A);
+                graphics.outline(fuelSlotX, fuelSlotY, 18, 18, isCompleted ? 0xFF334155 : 0xFFF59E0B);
+                if (!fuelItem.isEmpty()) {
+                    graphics.item(fuelItem, fuelSlotX + 1, fuelSlotY + 1);
+                    if (mouseX >= fuelSlotX && mouseX < fuelSlotX + 18 && mouseY >= fuelSlotY && mouseY < fuelSlotY + 18) {
+                        graphics.setTooltipForNextFrame(font, fuelItem, mouseX, mouseY);
+                    }
+                }
+
+                // Flecha indicadora hacia el resultado
+                int arrowX = inSlotX + 24;
+                int arrowY = inSlotY + 14;
+                graphics.text(font, Component.literal(isCompleted ? "§8➔" : "§6➔"), arrowX, arrowY, 0xFFFFFFFF);
+
+                // Ranura de salida (Ítem cocinado)
+                int outSlotX = arrowX + 14;
+                int outSlotY = inSlotY + 8;
+                graphics.fill(outSlotX, outSlotY, outSlotX + 22, outSlotY + 22, isCompleted ? 0x8805070A : 0xAA0F172A);
+                graphics.outline(outSlotX, outSlotY, 22, 22, isCompleted ? 0xFF334155 : 0xFF22C55E);
+                if (!resultStack.isEmpty()) {
+                    graphics.item(resultStack, outSlotX + 3, outSlotY + 3);
+                    graphics.itemDecorations(font, resultStack, outSlotX + 3, outSlotY + 3);
+                    if (mouseX >= outSlotX && mouseX < outSlotX + 22 && mouseY >= outSlotY && mouseY < outSlotY + 22) {
+                        graphics.setTooltipForNextFrame(font, resultStack, mouseX, mouseY);
+                    }
+                }
+
+                // Iconos de estaciones válidas a la derecha de la caja
+                int stationX = outSlotX + 30;
+                graphics.text(font, Component.literal("§7Fundir en:"), stationX, inSlotY + 2, 0xFF94A3B8);
+                graphics.item(new ItemStack(Items.FURNACE), stationX, inSlotY + 14);
+                graphics.item(new ItemStack(Items.SMOKER), stationX + 18, inSlotY + 14);
+                graphics.item(new ItemStack(Items.BLAST_FURNACE), stationX + 36, inSlotY + 14);
+                if (mouseX >= stationX && mouseX < stationX + 18 && mouseY >= inSlotY + 14 && mouseY < inSlotY + 32) {
+                    graphics.setTooltipForNextFrame(font, new ItemStack(Items.FURNACE), mouseX, mouseY);
+                } else if (mouseX >= stationX + 18 && mouseX < stationX + 36 && mouseY >= inSlotY + 14 && mouseY < inSlotY + 32) {
+                    graphics.setTooltipForNextFrame(font, new ItemStack(Items.SMOKER), mouseX, mouseY);
+                } else if (mouseX >= stationX + 36 && mouseX < stationX + 54 && mouseY >= inSlotY + 14 && mouseY < inSlotY + 32) {
+                    graphics.setTooltipForNextFrame(font, new ItemStack(Items.BLAST_FURNACE), mouseX, mouseY);
+                }
+
+                // Explicación paso a paso de cómo completar la misión
+                int stepsY = fBoxY + fBoxH + 4;
+                graphics.text(font, Component.literal("§e1. §7Coloca el ingrediente crudo arriba con carbón abajo."), rightX, stepsY, 0xFFCBD5E1);
+                graphics.text(font, Component.literal("§e2. §f¡Importante! §aRetira el ítem cocinado §fpara que cuente."), rightX, stepsY + 10, 0xFFFFFFFF);
+                graphics.text(font, Component.literal("§7(Válido en Horno convencional, Ahumadero o Alto Horno)"), rightX, stepsY + 20, 0xFF64748B);
+
+                nextSectionY = stepsY + 32;
             } else if ("EXPLORACION".equalsIgnoreCase(objType)) {
                 if (current.getTargetPos() != null) {
                     BlockPos pos = current.getTargetPos();
